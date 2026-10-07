@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -77,5 +78,12 @@ public class DeviceController {
         log.debug("PATCH /api/v1/devices/{}: {}", id, request);
         DeviceResponse response = deviceService.updateDevicePartially(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDevice(@PathVariable("id") UUID id) {
+        log.debug("DELETE /api/v1/devices/{}", id);
+        deviceService.deleteDevice(id);
+        return ResponseEntity.noContent().build();
     }
 }

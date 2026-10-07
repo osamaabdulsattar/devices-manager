@@ -42,15 +42,13 @@ public class DeviceService {
 
     @Transactional(readOnly = true)
     public DeviceResponse getDeviceById(UUID id) {
-        Device device = deviceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + id));
+        Device device = findDeviceOrThrow(id);
         return toResponse(device);
     }
 
     @Transactional
     public DeviceResponse createDevice(DeviceCreateRequest request) {
-        Brand brand = brandRepository.findById(request.brandId())
-                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.brandId()));
+        Brand brand = findBrandOrThrow(request.brandId());
 
         Device device = Device.builder()
                 .name(request.name())
@@ -64,20 +62,10 @@ public class DeviceService {
 
     @Transactional
     public DeviceResponse updateDeviceFully(UUID id, DeviceUpdateRequest request) {
-        Device device = deviceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + id));
+        Device device = findDeviceOrThrow(id);
+        Brand brand = findBrandOrThrow(request.brandId());
 
-        Brand brand = brandRepository.findById(request.brandId())
-                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.brandId()));
-
-        if (device.getState() == DeviceState.IN_USE) {
-            if (!device.getName().equals(request.name())) {
-                throw new IllegalArgumentException("Device name cannot be updated when device is in use");
-            }
-            if (!device.getBrand().getId().equals(request.brandId())) {
-                throw new IllegalArgumentException("Device brand cannot be updated when device is in use");
-            }
-        }
+        assertMutableWhileInUse(device, request.name(), request.brandId());
 
         device.setName(request.name());
         device.setBrand(brand);
@@ -89,23 +77,14 @@ public class DeviceService {
 
     @Transactional
     public DeviceResponse updateDevicePartially(UUID id, DevicePatchRequest request) {
-        Device device = deviceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + id));
+        Device device = findDeviceOrThrow(id);
 
         Brand brand = null;
         if (request.brandId() != null) {
-            brand = brandRepository.findById(request.brandId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.brandId()));
+            brand = findBrandOrThrow(request.brandId());
         }
 
-        if (device.getState() == DeviceState.IN_USE) {
-            if (request.name() != null && !device.getName().equals(request.name())) {
-                throw new IllegalArgumentException("Device name cannot be updated when device is in use");
-            }
-            if (request.brandId() != null && !device.getBrand().getId().equals(request.brandId())) {
-                throw new IllegalArgumentException("Device brand cannot be updated when device is in use");
-            }
-        }
+        assertMutableWhileInUse(device, request.name(), request.brandId());
 
         if (request.name() != null) {
             if (request.name().trim().isEmpty()) {
@@ -124,6 +103,39 @@ public class DeviceService {
 
         Device updatedDevice = deviceRepository.save(device);
         return toResponse(updatedDevice);
+    }
+
+    @Transactional
+    public void deleteDevice(UUID id) {
+        Device device = findDeviceOrThrow(id);
+
+        if (device.getState() == DeviceState.IN_USE) {
+            throw new IllegalArgumentException("Device cannot be deleted while it is in use");
+        }
+
+        deviceRepository.delete(device);
+    }
+
+    private Device findDeviceOrThrow(UUID id) {
+        return deviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + id));
+    }
+
+    private Brand findBrandOrThrow(UUID brandId) {
+        return brandRepository.findById(brandId)
+                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + brandId));
+    }
+
+    private void assertMutableWhileInUse(Device device, String newName, UUID newBrandId) {
+        if (device.getState() != DeviceState.IN_USE) {
+            return;
+        }
+        if (newName != null && !device.getName().equals(newName)) {
+            throw new IllegalArgumentException("Device name cannot be updated when device is in use");
+        }
+        if (newBrandId != null && !device.getBrand().getId().equals(newBrandId)) {
+            throw new IllegalArgumentException("Device brand cannot be updated when device is in use");
+        }
     }
 
     public DeviceResponse toResponse(Device device) {

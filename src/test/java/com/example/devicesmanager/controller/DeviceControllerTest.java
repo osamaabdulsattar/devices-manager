@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -608,5 +609,61 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
+    }
+
+    // --- DELETE /api/v1/devices/{id} tests ---
+
+    @Test
+    @DisplayName("DELETE /api/v1/devices/{id} deletes available device and returns 204")
+    void shouldDeleteAvailableDeviceSuccessfully() throws Exception {
+        mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + iphone.getId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/devices/{id} deletes inactive device and returns 204")
+    void shouldDeleteInactiveDeviceSuccessfully() throws Exception {
+        mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + galaxy.getId()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + galaxy.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/devices/{id} returns 400 when attempting to delete in-use device")
+    void shouldRejectDeletionOfInUseDevice() throws Exception {
+        mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + macbook.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value(containsString("cannot be deleted while it is in use")));
+
+        // Verify device still exists
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + macbook.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/devices/{id} returns 404 when device is not found")
+    void shouldReturn404WhenDeletingNonExistentDevice() throws Exception {
+        mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + UUID.randomUUID())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/devices/{id} returns 400 when ID is malformed UUID")
+    void shouldReturn400WhenDeletingWithMalformedUUID() throws Exception {
+        mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/invalid-uuid")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
     }
 }

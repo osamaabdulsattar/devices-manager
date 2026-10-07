@@ -472,4 +472,55 @@ class DeviceServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("blank");
     }
+
+    @Test
+    @DisplayName("deleteDevice deletes device when state is not in-use")
+    void shouldDeleteDeviceSuccessfully() {
+        UUID deviceId = UUID.randomUUID();
+        Device existing = Device.builder()
+                .id(deviceId)
+                .name("Phone")
+                .brand(Brand.builder().id(UUID.randomUUID()).name("Apple").build())
+                .state(DeviceState.AVAILABLE)
+                .build();
+
+        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
+
+        deviceService.deleteDevice(deviceId);
+
+        verify(deviceRepository, times(1)).delete(existing);
+    }
+
+    @Test
+    @DisplayName("deleteDevice throws IllegalArgumentException when device is in use")
+    void shouldThrowWhenDeletingInUseDevice() {
+        UUID deviceId = UUID.randomUUID();
+        Device existing = Device.builder()
+                .id(deviceId)
+                .name("MacBook Pro")
+                .brand(Brand.builder().id(UUID.randomUUID()).name("Apple").build())
+                .state(DeviceState.IN_USE)
+                .build();
+
+        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> deviceService.deleteDevice(deviceId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot be deleted while it is in use");
+
+        verify(deviceRepository, never()).delete(any(Device.class));
+    }
+
+    @Test
+    @DisplayName("deleteDevice throws ResourceNotFoundException when device does not exist")
+    void shouldThrowWhenDeletingNonExistentDevice() {
+        UUID deviceId = UUID.randomUUID();
+        when(deviceRepository.findById(deviceId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> deviceService.deleteDevice(deviceId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(deviceId.toString());
+
+        verify(deviceRepository, never()).delete(any(Device.class));
+    }
 }

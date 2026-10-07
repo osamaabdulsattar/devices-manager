@@ -20,10 +20,16 @@ A Java 21 Spring Boot REST service with PostgreSQL connection, Lombok support, S
 - Java 21 JDK installed
 - Docker
 
-### 2. Start PostgreSQL (Docker)
-A `docker-compose.yml` file is included for local development:
+### 2. Run Containerized with Docker Compose
+To run both the application and PostgreSQL database fully containerized:
 ```bash
-docker compose up -d
+docker compose up --build -d
+```
+The application will be available at [http://localhost:8080](http://localhost:8080).
+
+Alternatively, to start only the PostgreSQL container for local development:
+```bash
+docker compose up postgres -d
 ```
 Default connection settings:
 - **Host**: `localhost:5432`
@@ -31,20 +37,19 @@ Default connection settings:
 - **User**: `postgres`
 - **Password**: `postgres`
 
-These can be customized via environment variables:
-- `SPRING_DATASOURCE_URL` (default: `jdbc:postgresql://localhost:5432/devices_db`)
-- `SPRING_DATASOURCE_USERNAME` (default: `postgres`)
-- `SPRING_DATASOURCE_PASSWORD` (default: `postgres`)
-
-### 3. Build & Run the Application
+### 3. Build & Run the Application Locally
 Run locally using the Gradle wrapper:
 ```bash
 ./gradlew bootRun
 ```
-Or build the executable JAR:
+Or build the executable JAR / Docker image:
 ```bash
+# Build executable JAR
 ./gradlew bootJar
 java -jar build/libs/devices-manager-0.0.1-SNAPSHOT.jar
+
+# Build standalone Docker image
+docker build -t devices-manager .
 ```
 
 ### 4. Running Tests
@@ -100,6 +105,11 @@ A pre-configured Postman Collection is provided in the repository:
 - **`state`**: Operational state (`available`, `in-use`, `inactive`)
 - **`createdAt`**: Creation timestamp (ISO-8601)
 
+#### Domain Validations
+- **Creation Time Immutability**: Creation time (`createdAt`) is auto-generated upon creation and cannot be updated.
+- **In-Use Device Protection (Update)**: Name and brand properties cannot be updated while the device state is `in-use`.
+- **In-Use Device Protection (Delete)**: A device cannot be deleted while its state is `in-use`.
+
 ---
 
 ### 2. Brand Management (`/api/v1/brands`)
@@ -113,3 +123,39 @@ A pre-configured Postman Collection is provided in the repository:
 | `DELETE` | `/api/v1/brands/{id}` | **Delete Brand**: Deletes a brand entity (when no devices are associated). |
 
 To list a brand's devices, use `GET /api/v1/devices?brandId={id}`.
+
+---
+
+## Future Improvements & Production Roadmap
+
+Below are recommended architectural, operational, and feature enhancements to take this service from MVP to an enterprise-grade production platform:
+
+### 1. Security & Access Governance
+- **OAuth2 / OIDC Authentication**: Integrate with an identity provider (e.g., Keycloak, Auth0, Okta, or AWS Cognito) using Spring Security OAuth2 Resource Server with JWT validation.
+- **Role-Based Access Control (RBAC)**: Enforce granular scopes and permissions (e.g., `devices:read`, `devices:write`, `devices:delete`, `admin`) to protect sensitive administrative actions.
+- **Audit Logging & Entity Versioning**: Implement Spring Data Envers or database triggers to maintain an immutable audit trail of who modified or deleted devices, capturing timestamps, caller identity, and state diffs.
+
+### 2. Observability & Reliability
+- **Spring Boot Actuator**: Add `/actuator/health/liveness` and `/actuator/health/readiness` probes for Kubernetes orchestration, alongside `/actuator/metrics`.
+- **OpenTelemetry (OTel) & Distributed Tracing**: Export distributed traces and span contexts to APM backends (such as New Relic, Datadog, Jaeger, or Grafana Tempo) for end-to-end request visibility.
+- **Prometheus Metrics**: Expose application and JVM metrics via Micrometer for alerting and monitoring dashboards.
+- **Structured JSON Logging**: Standardize application logs to structured JSON (e.g., Logstash Logback Encoder) with correlation IDs (`traceId`, `spanId`) for ingestion by ELK, Loki, or Datadog.
+
+### 3. API Scalability & Concurrency Control
+- **Pagination & Sorting**: Transition `GET /api/v1/devices` to support Spring Data `Pageable` (`page`, `size`, `sort`) to avoid high memory consumption and slow queries when device counts scale into thousands or millions.
+- **Optimistic Locking & Concurrency (`@Version`)**: Add entity versioning to protect against lost updates when concurrent clients update the same device simultaneously, with support for HTTP `ETag` and `If-Match` headers.
+- **Rate Limiting & Throttling**: Protect public and high-throughput endpoints using Token Bucket algorithms (e.g., Bucket4j or Redis-backed rate limiters).
+
+### 4. Data Architecture & Performance
+- **Caching Layer**: Cache frequent read operations (such as brand lookups or device queries by ID) using Redis and Spring Cache, with cache eviction on state changes.
+- **Soft Deletes**: In enterprise asset management, replace physical deletions with soft deletion (`deleted_at` timestamp or `@SQLRestriction`) to retain compliance and historical audit data.
+- **Composite Database Indexes**: Add composite indexes (e.g., on `(brand_id, state)`) to optimize multi-criteria filtering queries at scale.
+
+### 5. Event-Driven Architecture
+- **Domain Event Publishing**: Publish lifecycle events (`DeviceCreatedEvent`, `DeviceStateChangedEvent`, `DeviceDeletedEvent`) to an event broker like Apache Kafka or RabbitMQ to decouple downstream consumers (inventory, billing, reporting).
+- **Transactional Outbox Pattern**: Ensure reliable message delivery by persisting domain events within the same database transaction as business entities.
+
+### 6. Cloud-Native Delivery & CI/CD
+- **Kubernetes Helm Chart**: Package deployment manifests (Deployment, Service, Ingress, Horizontal Pod Autoscaler, PodDisruptionBudget, ConfigMaps, and Secrets) into a reusable Helm chart.
+- **Automated CI/CD Pipelines**: Set up automated GitHub Actions / GitLab CI workflows for testing, static analysis (SonarQube/SpotBugs), dependency vulnerability audits, container vulnerability scanning (Trivy), and automated container registry publishing.
+

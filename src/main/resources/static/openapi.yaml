@@ -258,6 +258,12 @@ paths:
       responses:
         '204':
           description: Device successfully deleted (No Content)
+        '400':
+          description: Device is currently in use and cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Device not found
           content:
