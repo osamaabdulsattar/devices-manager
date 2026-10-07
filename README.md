@@ -1,6 +1,10 @@
 # Devices Manager Service
 
+[![Latest Release](https://img.shields.io/github/v/release/osamaabdulsattar/devices-manager)](https://github.com/osamaabdulsattar/devices-manager/releases)
+
 A Java 21 Spring Boot REST service with PostgreSQL connection, Lombok support, SpringDoc OpenAPI (Swagger UI), and Gradle build tool.
+
+Tagged releases (with release notes and a matching versioned Docker image published to GHCR) are available on the [Releases page](https://github.com/osamaabdulsattar/devices-manager/releases).
 
 ## Tech Stack
 - **Java**: 21
