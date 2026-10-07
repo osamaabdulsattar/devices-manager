@@ -1,0 +1,675 @@
+openapi: 3.0.3
+info:
+  title: Devices Manager API
+  description: |
+    RESTful API specification for managing Devices and Brands.
+    
+    ### Domain Entities
+    - **Device**: Physical or virtual device containing an ID, Name, associated Brand, State, and Creation timestamp.
+    - **Brand**: Separate entity representing device manufacturers/brands.
+    
+    ### Device States
+    - `available`: Device is ready for assignment/use.
+    - `in-use`: Device is currently assigned or in operation.
+    - `inactive`: Device is decommissioned, defective, or disabled.
+  version: 1.0.0
+  contact:
+    name: Devices Management Team
+    email: support@example.com
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Devices
+    description: CRUD operations and queries for devices
+  - name: Brands
+    description: Operations for managing device brands
+
+paths:
+  /devices:
+    get:
+      tags:
+        - Devices
+      summary: Fetch all devices (with optional filters)
+      description: |
+        Retrieves a list of devices. Supports filtering by brand ID, brand name, and operational state.
+        If no query parameters are provided, all devices are returned.
+        Multiple filters can be combined and are applied with AND semantics
+        (e.g. `?state=available&brandId=...`).
+        A filter that matches nothing (including a non-existent `brandId`) returns `200` with an empty list.
+      operationId: getAllDevices
+      parameters:
+        - name: brandId
+          in: query
+          required: false
+          description: Filter devices by brand entity ID
+          schema:
+            type: string
+            format: uuid
+            example: 3f8e2a1c-7b5d-4c9e-8f6a-1d2c3b4a5e6f
+        - name: brandName
+          in: query
+          required: false
+          description: |
+            Filter devices by brand name using a case-insensitive substring match
+            (an exact name also matches). E.g. `app`, `APPLE` and `Apple` all match brand `Apple`.
+          schema:
+            type: string
+            example: Apple
+        - name: state
+          in: query
+          required: false
+          description: Filter devices by current state
+          schema:
+            $ref: '#/components/schemas/DeviceState'
+      responses:
+        '200':
+          description: Successfully retrieved list of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          description: Invalid query parameter provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Devices
+      summary: Create a new device
+      description: Creates a new device associated with an existing brand entity. Creation time and ID are automatically generated.
+      operationId: createDevice
+      requestBody:
+        required: true
+        description: Device payload to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreateRequest'
+      responses:
+        '201':
+          description: Device created successfully
+          headers:
+            Location:
+              description: URI of the newly created device
+              schema:
+                type: string
+                example: /api/v1/devices/9b2f6c1e-4d3a-4e8b-a7c5-2f1d0e9b8a76
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          description: Invalid request payload or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Referenced Brand ID not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (e.g. device with duplicate identifier or unique constraint violated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /devices/{id}:
+    get:
+      tags:
+        - Devices
+      summary: Fetch a single device
+      description: Retrieves the details of a single device by its unique ID.
+      operationId: getDeviceById
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdParam'
+      responses:
+        '200':
+          description: Device found and returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Devices
+      summary: Fully update an existing device
+      description: Replaces all mutable attributes of an existing device. All updatable fields must be provided in the request body.
+      operationId: updateDeviceFully
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdParam'
+      requestBody:
+        required: true
+        description: Complete updated device details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUpdateRequest'
+      responses:
+        '200':
+          description: Device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          description: Invalid input or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Device not found or referenced Brand not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags:
+        - Devices
+      summary: Partially update an existing device
+      description: Updates only the specified fields of an existing device. Fields omitted from the payload remain unchanged.
+      operationId: updateDevicePartially
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdParam'
+      requestBody:
+        required: true
+        description: Subset of device fields to update
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevicePatchRequest'
+      responses:
+        '200':
+          description: Device partially updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          description: Invalid input or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Device not found or referenced Brand not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Devices
+      summary: Delete a single device
+      description: Deletes an existing device by its ID.
+      operationId: deleteDevice
+      parameters:
+        - $ref: '#/components/parameters/DeviceIdParam'
+      responses:
+        '204':
+          description: Device successfully deleted (No Content)
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /brands:
+    get:
+      tags:
+        - Brands
+      summary: Fetch all brands
+      description: Retrieves a list of all device brands.
+      operationId: getAllBrands
+      responses:
+        '200':
+          description: List of all registered brands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Brand'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Brands
+      summary: Create a new brand
+      description: Registers a new brand entity.
+      operationId: createBrand
+      requestBody:
+        required: true
+        description: Brand payload to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandCreateRequest'
+      responses:
+        '201':
+          description: Brand created successfully
+          headers:
+            Location:
+              description: URI of the newly created brand
+              schema:
+                type: string
+                example: /api/v1/brands/3f8e2a1c-7b5d-4c9e-8f6a-1d2c3b4a5e6f
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Brand'
+        '400':
+          description: Invalid request payload or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Brand name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /brands/{id}:
+    get:
+      tags:
+        - Brands
+      summary: Fetch a single brand
+      description: Retrieves details of a specific brand by its ID.
+      operationId: getBrandById
+      parameters:
+        - $ref: '#/components/parameters/BrandIdParam'
+      responses:
+        '200':
+          description: Brand found and returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Brand'
+        '404':
+          description: Brand not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Brands
+      summary: Update an existing brand
+      description: Updates the properties of an existing brand.
+      operationId: updateBrand
+      parameters:
+        - $ref: '#/components/parameters/BrandIdParam'
+      requestBody:
+        required: true
+        description: Updated brand data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandUpdateRequest'
+      responses:
+        '200':
+          description: Brand updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Brand'
+        '400':
+          description: Invalid input or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Brand not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Brand name already in use by another brand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Brands
+      summary: Delete a brand
+      description: Deletes an existing brand. Note that brands with associated devices cannot be deleted without first reassigning or deleting those devices.
+      operationId: deleteBrand
+      parameters:
+        - $ref: '#/components/parameters/BrandIdParam'
+      responses:
+        '204':
+          description: Brand successfully deleted (No Content)
+        '404':
+          description: Brand not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot delete brand because devices are still associated with it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  parameters:
+    DeviceIdParam:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the device
+      schema:
+        type: string
+        format: uuid
+        example: 9b2f6c1e-4d3a-4e8b-a7c5-2f1d0e9b8a76
+
+    BrandIdParam:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the brand
+      schema:
+        type: string
+        format: uuid
+        example: 3f8e2a1c-7b5d-4c9e-8f6a-1d2c3b4a5e6f
+
+  schemas:
+    DeviceState:
+      type: string
+      enum:
+        - available
+        - in-use
+        - inactive
+      example: available
+      description: |
+        Current state of the device:
+        - `available`: Device is ready for use.
+        - `in-use`: Device is currently in use.
+        - `inactive`: Device is decommissioned or inactive.
+
+    Brand:
+      type: object
+      description: Represents a brand entity
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 3f8e2a1c-7b5d-4c9e-8f6a-1d2c3b4a5e6f
+          description: Unique identifier of the brand
+          readOnly: true
+        name:
+          type: string
+          example: Apple
+          description: Brand name
+      required:
+        - id
+        - name
+
+    BrandCreateRequest:
+      type: object
+      description: Request payload for creating a new brand
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Apple
+          description: Unique name of the brand
+      required:
+        - name
+
+    BrandUpdateRequest:
+      type: object
+      description: Request payload for updating a brand
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Apple Inc.
+          description: Updated brand name
+      required:
+        - name
+
+    DeviceResponse:
+      type: object
+      description: Full device representation returned in responses
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 9b2f6c1e-4d3a-4e8b-a7c5-2f1d0e9b8a76
+          description: Unique identifier of the device
+          readOnly: true
+        name:
+          type: string
+          example: iPhone 15 Pro
+          description: Device name / model
+        brand:
+          $ref: '#/components/schemas/Brand'
+        state:
+          $ref: '#/components/schemas/DeviceState'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-10-07T08:30:00Z'
+          description: Timestamp when the device was created (ISO-8601)
+          readOnly: true
+      required:
+        - id
+        - name
+        - brand
+        - state
+        - createdAt
+
+    DeviceCreateRequest:
+      type: object
+      description: Request payload for creating a new device
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: iPhone 15 Pro
+          description: Name or model of the device
+        brandId:
+          type: string
+          format: uuid
+          example: 3f8e2a1c-7b5d-4c9e-8f6a-1d2c3b4a5e6f
+          description: ID of an existing brand entity
+        state:
+          $ref: '#/components/schemas/DeviceState'
+          default: available
+          description: Initial state of the device. Defaults to `available` if omitted.
+      required:
+        - name
+        - brandId
+
+    DeviceUpdateRequest:
+      type: object
+      description: Request payload for fully updating (PUT) an existing device. All updatable fields must be provided.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: iPhone 15 Pro Max
+          description: Updated device name
+        brandId:
+          type: string
+          format: uuid
+          example: 3f8e2a1c-7b5d-4c9e-8f6a-1d2c3b4a5e6f
+          description: Updated brand entity ID
+        state:
+          $ref: '#/components/schemas/DeviceState'
+          description: Updated state of the device
+      required:
+        - name
+        - brandId
+        - state
+
+    DevicePatchRequest:
+      type: object
+      description: Request payload for partially updating (PATCH) an existing device. Only specified fields will be updated.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: iPhone 15 Pro Max
+          description: Optional updated device name
+        brandId:
+          type: string
+          format: uuid
+          example: c4d7e9f1-2a3b-4c5d-9e8f-7a6b5c4d3e2f
+          description: Optional updated brand entity ID
+        state:
+          $ref: '#/components/schemas/DeviceState'
+          description: Optional updated state of the device
+
+    ErrorResponse:
+      type: object
+      description: Standard API error response format
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-10-07T09:15:00Z'
+          description: When the error occurred
+        status:
+          type: integer
+          example: 400
+          description: HTTP status code
+        error:
+          type: string
+          example: Bad Request
+          description: Short error description
+        message:
+          type: string
+          example: Device validation failed
+          description: Detailed human-readable error explanation
+        path:
+          type: string
+          example: /api/v1/devices
+          description: The endpoint URI where the error occurred
+        validationErrors:
+          type: array
+          description: Detailed field-level errors (if applicable)
+          items:
+            $ref: '#/components/schemas/FieldError'
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+
+    FieldError:
+      type: object
+      description: Validation error for a specific field
+      properties:
+        field:
+          type: string
+          example: name
+          description: Field name that failed validation
+        message:
+          type: string
+          example: Device name must not be blank
+          description: Reason for validation failure
+      required:
+        - field
+        - message
