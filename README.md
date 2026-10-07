@@ -8,6 +8,7 @@ A Java 21 Spring Boot REST service with PostgreSQL connection, Lombok support, S
 - **Build Tool**: Gradle (with Gradle Wrapper)
 - **API Documentation**: SpringDoc OpenAPI 3 / Swagger UI
 - **Database**: PostgreSQL (with Spring Data JPA / Hibernate)
+- **Database Migrations**: Flyway
 - **Utilities**: Lombok (boilerplate reduction)
 - **Testing**: JUnit 5, Spring Boot Test, MockMvc, H2 (in-memory test database)
 
@@ -61,6 +62,21 @@ Once the application is running, the interactive Swagger UI and OpenAPI specific
 - **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) (or `/swagger-ui/index.html`)
 - **OpenAPI Specification (YAML)**: [http://localhost:8080/openapi.yaml](http://localhost:8080/openapi.yaml)
 - **Specification Source File**: `src/main/resources/static/openapi.yaml`
+
+---
+
+## Testing with Postman
+
+A pre-configured Postman Collection is provided in the repository:
+- **Collection File**: [`postman/devices-manager.postman_collection.json`](file:///Users/osama/workspace/devices-manager/postman/devices-manager.postman_collection.json)
+
+### How to use:
+1. Open **Postman** -> click **Import** -> select `postman/devices-manager.postman_collection.json`.
+2. The collection includes the following folders:
+   - **Devices**: Fetch all, filter by state, filter by brand, combined filters, fetch single, create, update, delete.
+   - **Brands**: Fetch all, create, fetch single, update, delete.
+   - **Documentation**: Raw OpenAPI spec.
+3. **Automated Variables**: The collection defines `baseUrl` (default `http://localhost:8080`), `brandId`, and `deviceId`. Creating or fetching resources automatically updates `brandId` and `deviceId` for subsequent requests.
 
 ---
 
