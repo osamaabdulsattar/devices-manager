@@ -143,7 +143,7 @@ Below are recommended architectural, operational, and feature enhancements to ta
 
 ### 3. API Scalability & Concurrency Control
 - **Pagination & Sorting**: Transition `GET /api/v1/devices` to support Spring Data `Pageable` (`page`, `size`, `sort`) to avoid high memory consumption and slow queries when device counts scale into thousands or millions.
-- **Optimistic Locking & Concurrency (`@Version`)**: Add entity versioning to protect against lost updates when concurrent clients update the same device simultaneously, with support for HTTP `ETag` and `If-Match` headers.
+- **HTTP `ETag` / `If-Match` Support**: Entity versioning (`@Version`) is already in place to reject lost updates with a `409 Conflict`; expose that version via HTTP `ETag` and `If-Match` headers for standards-based conditional requests.
 - **Rate Limiting & Throttling**: Protect public and high-throughput endpoints using Token Bucket algorithms (e.g., Bucket4j or Redis-backed rate limiters).
 
 ### 4. Data Architecture & Performance
@@ -157,5 +157,6 @@ Below are recommended architectural, operational, and feature enhancements to ta
 
 ### 6. Cloud-Native Delivery & CI/CD
 - **Kubernetes Helm Chart**: Package deployment manifests (Deployment, Service, Ingress, Horizontal Pod Autoscaler, PodDisruptionBudget, ConfigMaps, and Secrets) into a reusable Helm chart.
-- **Automated CI/CD Pipelines**: Set up automated GitHub Actions / GitLab CI workflows for testing, static analysis (SonarQube/SpotBugs), dependency vulnerability audits, container vulnerability scanning (Trivy), and automated container registry publishing.
+- **SonarQube Code Quality Gate**: Integrate SonarQube/SonarCloud into the CI pipeline for deeper static analysis than SpotBugs alone (code smells, duplication, test coverage, security hotspots), enforced as a merge-blocking quality gate. Requires a SonarQube server/account and a `SONAR_TOKEN` secret.
+- **Aikido Security Scanning**: Add Aikido Security to the CI pipeline for unified SAST, open-source dependency (SCA) scanning, container image scanning, and secrets detection, with findings surfaced directly on pull requests. Requires an Aikido account and API key.
 

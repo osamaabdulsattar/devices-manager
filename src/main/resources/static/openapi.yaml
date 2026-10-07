@@ -199,6 +199,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Device was modified concurrently by another request; retry with the latest state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -236,6 +242,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Device not found or referenced Brand not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Device was modified concurrently by another request; retry with the latest state
           content:
             application/json:
               schema:

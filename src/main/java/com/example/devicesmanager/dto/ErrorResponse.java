@@ -14,6 +14,10 @@ public record ErrorResponse(
         String path,
         List<FieldErrorResponse> validationErrors
 ) {
+    public ErrorResponse {
+        validationErrors = validationErrors != null ? List.copyOf(validationErrors) : null;
+    }
+
     public ErrorResponse(Instant timestamp, int status, String error, String message, String path) {
         this(timestamp, status, error, message, path, null);
     }

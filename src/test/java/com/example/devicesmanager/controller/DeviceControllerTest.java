@@ -13,10 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -665,5 +667,22 @@ class DeviceControllerTest {
         mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/invalid-uuid")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
+    }
+
+    // --- Optimistic locking tests ---
+
+    @Test
+    @DisplayName("Saving a device after it was concurrently modified throws an optimistic locking exception")
+    void shouldThrowOptimisticLockingExceptionOnStaleWrite() {
+        Device winningCopy = deviceRepository.findById(iphone.getId()).orElseThrow();
+        Device staleCopy = deviceRepository.findById(iphone.getId()).orElseThrow();
+
+        winningCopy.setName("iPhone 15 Pro Max");
+        deviceRepository.saveAndFlush(winningCopy);
+
+        staleCopy.setName("iPhone Conflicting Edit");
+
+        assertThatThrownBy(() -> deviceRepository.saveAndFlush(staleCopy))
+                .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 }

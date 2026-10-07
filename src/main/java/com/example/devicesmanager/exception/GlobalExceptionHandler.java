@@ -69,10 +69,12 @@ public class GlobalExceptionHandler {
     ) {
         log.warn("Malformed request body: {}", ex.getMessage());
         String message = "Malformed request payload";
-        if (ex.getCause() instanceof IllegalArgumentException) {
-            message = ex.getCause().getMessage();
-        } else if (ex.getRootCause() != null && ex.getRootCause().getMessage() != null) {
-            message = ex.getRootCause().getMessage();
+        Throwable cause = ex.getCause();
+        Throwable rootCause = ex.getRootCause();
+        if (cause instanceof IllegalArgumentException) {
+            message = cause.getMessage();
+        } else if (rootCause != null && rootCause.getMessage() != null) {
+            message = rootCause.getMessage();
         }
         ErrorResponse errorResponse = new ErrorResponse(
                 Instant.now(),
