@@ -689,6 +689,75 @@ class DeviceControllerTest {
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
 
+    // --- ETag / If-Match tests ---
+
+    @Test
+    @DisplayName("GET /api/v1/devices/{id} returns the entity version as ETag")
+    void shouldReturnETagOnGet() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"0\""))
+                .andExpect(jsonPath("$.version").value(0));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/devices/{id} with matching If-Match succeeds and returns the incremented ETag")
+    void shouldPatchWhenIfMatchIsCurrent() throws Exception {
+        mockMvc.perform(patch(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .header("If-Match", "\"0\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"state\": \"inactive\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(header().string("ETag", "\"1\""))
+                .andExpect(jsonPath("$.version").value(1));
+    }
+
+    @Test
+    @DisplayName("PUT /api/v1/devices/{id} with stale If-Match returns 412 and leaves the device unchanged")
+    void shouldRejectPutWithStaleIfMatch() throws Exception {
+        String payload = """
+                {
+                    "name": "iPhone 16",
+                    "brandId": "%s",
+                    "state": "available"
+                }
+                """.formatted(apple.getId());
+
+        mockMvc.perform(put(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .header("If-Match", "\"5\"")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.status").value(412));
+
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.name").value("iPhone 15 Pro"));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/devices/{id} with stale If-Match returns 412")
+    void shouldRejectDeleteWithStaleIfMatch() throws Exception {
+        mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .header("If-Match", "\"3\"")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isPreconditionFailed());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/devices/{id} with wildcard If-Match skips the version check")
+    void shouldAcceptWildcardIfMatch() throws Exception {
+        mockMvc.perform(patch(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .header("If-Match", "*")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"iPhone 15\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
     @Test
     @DisplayName("PATCH /api/v1/devices/{id} accepts a multi-line name that contains text")
     void shouldAcceptMultiLineNameInPatch() throws Exception {

@@ -13,7 +13,8 @@ public final class DeviceMapper {
                 device.getName(),
                 BrandMapper.toResponse(device.getBrand()),
                 device.getState(),
-                device.getCreatedAt()
+                device.getCreatedAt(),
+                device.getVersion()
         );
     }
 }

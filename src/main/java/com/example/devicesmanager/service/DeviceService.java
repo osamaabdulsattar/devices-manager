@@ -5,6 +5,7 @@ import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
 import com.example.devicesmanager.exception.DeviceInUseException;
+import com.example.devicesmanager.exception.PreconditionFailedException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.mapper.DeviceMapper;
 import com.example.devicesmanager.model.Brand;
@@ -61,9 +62,13 @@ public class DeviceService {
         return DeviceMapper.toResponse(savedDevice);
     }
 
+    /**
+     * @param expectedVersion version from the client's {@code If-Match} header, or {@code null} to skip the check
+     */
     @Transactional
-    public DeviceResponse updateDeviceFully(UUID id, DeviceUpdateRequest request) {
+    public DeviceResponse updateDeviceFully(UUID id, DeviceUpdateRequest request, Long expectedVersion) {
         Device device = findDeviceOrThrow(id);
+        assertVersionMatches(device, expectedVersion);
         Brand brand = findBrandOrThrow(request.brandId());
 
         assertMutableWhileInUse(device, request.name(), request.brandId());
@@ -72,13 +77,18 @@ public class DeviceService {
         device.setBrand(brand);
         device.setState(request.state());
 
-        Device updatedDevice = deviceRepository.save(device);
+        // Flush so the incremented version is reflected in the response (and its ETag).
+        Device updatedDevice = deviceRepository.saveAndFlush(device);
         return DeviceMapper.toResponse(updatedDevice);
     }
 
+    /**
+     * @param expectedVersion version from the client's {@code If-Match} header, or {@code null} to skip the check
+     */
     @Transactional
-    public DeviceResponse updateDevicePartially(UUID id, DevicePatchRequest request) {
+    public DeviceResponse updateDevicePartially(UUID id, DevicePatchRequest request, Long expectedVersion) {
         Device device = findDeviceOrThrow(id);
+        assertVersionMatches(device, expectedVersion);
 
         Brand brand = null;
         if (request.brandId() != null) {
@@ -99,13 +109,17 @@ public class DeviceService {
             device.setState(request.state());
         }
 
-        Device updatedDevice = deviceRepository.save(device);
+        Device updatedDevice = deviceRepository.saveAndFlush(device);
         return DeviceMapper.toResponse(updatedDevice);
     }
 
+    /**
+     * @param expectedVersion version from the client's {@code If-Match} header, or {@code null} to skip the check
+     */
     @Transactional
-    public void deleteDevice(UUID id) {
+    public void deleteDevice(UUID id, Long expectedVersion) {
         Device device = findDeviceOrThrow(id);
+        assertVersionMatches(device, expectedVersion);
 
         if (device.getState() == DeviceState.IN_USE) {
             throw new DeviceInUseException("Device cannot be deleted while it is in use");
@@ -122,6 +136,13 @@ public class DeviceService {
     private Brand findBrandOrThrow(UUID brandId) {
         return brandRepository.findById(brandId)
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + brandId));
+    }
+
+    private void assertVersionMatches(Device device, Long expectedVersion) {
+        if (expectedVersion != null && !expectedVersion.equals(device.getVersion())) {
+            throw new PreconditionFailedException(
+                    "Device has been modified (current version " + device.getVersion() + "); fetch it again and retry");
+        }
     }
 
     private void assertMutableWhileInUse(Device device, String newName, UUID newBrandId) {

@@ -8,6 +8,13 @@ info:
     - **Device**: Physical or virtual device containing an ID, Name, associated Brand, State, and Creation timestamp.
     - **Brand**: Separate entity representing device manufacturers/brands.
     
+    ### Concurrency control
+    Single-device responses carry an `ETag` header holding the device version (also returned as `version`).
+    Send it back in `If-Match` on `PUT`, `PATCH` or `DELETE` to make the change conditional:
+    if the device has been modified in the meantime the request fails with `412 Precondition Failed`.
+    `If-Match` is optional; without it the last write wins (concurrent writes inside the same instant
+    still fail with `409 Conflict`).
+
     ### Device States
     - `available`: Device is ready for assignment/use.
     - `in-use`: Device is currently assigned or in operation.
@@ -107,6 +114,8 @@ paths:
               schema:
                 type: string
                 example: /api/v1/devices/9b2f6c1e-4d3a-4e8b-a7c5-2f1d0e9b8a76
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -124,7 +133,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Conflict (e.g. device with duplicate identifier or unique constraint violated)
+          description: Request conflicts with existing data (e.g. the brand was deleted concurrently)
           content:
             application/json:
               schema:
@@ -148,6 +157,9 @@ paths:
       responses:
         '200':
           description: Device found and returned
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -173,6 +185,7 @@ paths:
       operationId: updateDeviceFully
       parameters:
         - $ref: '#/components/parameters/DeviceIdParam'
+        - $ref: '#/components/parameters/IfMatchParam'
       requestBody:
         required: true
         description: Complete updated device details
@@ -183,6 +196,9 @@ paths:
       responses:
         '200':
           description: Device updated successfully
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -207,6 +223,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
         '500':
           description: Internal server error
           content:
@@ -222,6 +240,7 @@ paths:
       operationId: updateDevicePartially
       parameters:
         - $ref: '#/components/parameters/DeviceIdParam'
+        - $ref: '#/components/parameters/IfMatchParam'
       requestBody:
         required: true
         description: Subset of device fields to update
@@ -232,6 +251,9 @@ paths:
       responses:
         '200':
           description: Device partially updated successfully
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -256,6 +278,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
         '500':
           description: Internal server error
           content:
@@ -271,6 +295,7 @@ paths:
       operationId: deleteDevice
       parameters:
         - $ref: '#/components/parameters/DeviceIdParam'
+        - $ref: '#/components/parameters/IfMatchParam'
       responses:
         '204':
           description: Device successfully deleted (No Content)
@@ -292,6 +317,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
         '500':
           description: Internal server error
           content:
@@ -474,7 +501,33 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  headers:
+    ETag:
+      description: Current version of the device, usable in a later `If-Match` header
+      schema:
+        type: string
+        example: '"3"'
+
+  responses:
+    PreconditionFailed:
+      description: The `If-Match` header does not match the current device version
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   parameters:
+    IfMatchParam:
+      name: If-Match
+      in: header
+      required: false
+      description: |
+        `ETag` of the device as last seen by the client. When present, the request only succeeds
+        if the device has not changed since; otherwise `412` is returned. `*` skips the check.
+      schema:
+        type: string
+        example: '"3"'
+
     DeviceIdParam:
       name: id
       in: path
@@ -564,12 +617,19 @@ components:
           example: '2026-10-07T08:30:00Z'
           description: Timestamp when the device was created (ISO-8601)
           readOnly: true
+        version:
+          type: integer
+          format: int64
+          example: 3
+          description: Version of the device, incremented on every change. Equal to the `ETag` value.
+          readOnly: true
       required:
         - id
         - name
         - brand
         - state
         - createdAt
+        - version
 
     DeviceCreateRequest:
       type: object

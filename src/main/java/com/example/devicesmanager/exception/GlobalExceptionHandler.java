@@ -92,6 +92,15 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(PreconditionFailedException.class)
+    public ResponseEntity<ErrorResponse> handlePreconditionFailed(
+            PreconditionFailedException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Precondition failed: {}", ex.getMessage());
+        return buildResponse(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLocking(
             ObjectOptimisticLockingFailureException ex,

@@ -53,4 +53,13 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().message()).doesNotContain("brands_name_key");
     }
 
+    @Test
+    void handlePreconditionFailedReturns412() {
+        ResponseEntity<ErrorResponse> response =
+                handler.handlePreconditionFailed(new PreconditionFailedException("stale"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_FAILED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().status()).isEqualTo(412);
+    }
 }

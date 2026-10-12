@@ -5,6 +5,7 @@ import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
 import com.example.devicesmanager.exception.DeviceInUseException;
+import com.example.devicesmanager.exception.PreconditionFailedException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.model.Brand;
 import com.example.devicesmanager.model.Device;
@@ -188,7 +189,7 @@ class DeviceServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(brandId.toString());
 
-        verify(deviceRepository, never()).save(any());
+        verify(deviceRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -212,10 +213,10 @@ class DeviceServiceTest {
 
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
         when(brandRepository.findById(newBrandId)).thenReturn(Optional.of(newBrand));
-        when(deviceRepository.save(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(deviceRepository.saveAndFlush(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
 
         DeviceUpdateRequest request = new DeviceUpdateRequest("Pixel 8 Pro", newBrandId, DeviceState.IN_USE);
-        DeviceResponse response = deviceService.updateDeviceFully(deviceId, request);
+        DeviceResponse response = deviceService.updateDeviceFully(deviceId, request, null);
 
         assertThat(response.name()).isEqualTo("Pixel 8 Pro");
         assertThat(response.brand().id()).isEqualTo(newBrandId);
@@ -242,10 +243,10 @@ class DeviceServiceTest {
 
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
         when(brandRepository.findById(brandId)).thenReturn(Optional.of(brand));
-        when(deviceRepository.save(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(deviceRepository.saveAndFlush(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
 
         DeviceUpdateRequest request = new DeviceUpdateRequest("MacBook Pro", brandId, DeviceState.AVAILABLE);
-        DeviceResponse response = deviceService.updateDeviceFully(deviceId, request);
+        DeviceResponse response = deviceService.updateDeviceFully(deviceId, request, null);
 
         assertThat(response.state()).isEqualTo(DeviceState.AVAILABLE);
         assertThat(response.name()).isEqualTo("MacBook Pro");
@@ -272,11 +273,11 @@ class DeviceServiceTest {
 
         DeviceUpdateRequest request = new DeviceUpdateRequest("MacBook Air", brandId, DeviceState.IN_USE);
 
-        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request))
+        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request, null))
                 .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("name cannot be updated when device is in use");
 
-        verify(deviceRepository, never()).save(any());
+        verify(deviceRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -301,11 +302,11 @@ class DeviceServiceTest {
 
         DeviceUpdateRequest request = new DeviceUpdateRequest("MacBook Pro", otherBrandId, DeviceState.IN_USE);
 
-        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request))
+        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request, null))
                 .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("brand cannot be updated when device is in use");
 
-        verify(deviceRepository, never()).save(any());
+        verify(deviceRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -317,7 +318,7 @@ class DeviceServiceTest {
 
         DeviceUpdateRequest request = new DeviceUpdateRequest("Name", brandId, DeviceState.AVAILABLE);
 
-        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request))
+        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request, null))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(deviceId.toString());
     }
@@ -339,7 +340,7 @@ class DeviceServiceTest {
 
         DeviceUpdateRequest request = new DeviceUpdateRequest("New Name", brandId, DeviceState.AVAILABLE);
 
-        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request))
+        assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request, null))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(brandId.toString());
     }
@@ -361,10 +362,10 @@ class DeviceServiceTest {
                 .build();
 
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
-        when(deviceRepository.save(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(deviceRepository.saveAndFlush(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
 
         DevicePatchRequest request = new DevicePatchRequest("iPhone 15 Plus", null, null);
-        DeviceResponse response = deviceService.updateDevicePartially(deviceId, request);
+        DeviceResponse response = deviceService.updateDevicePartially(deviceId, request, null);
 
         assertThat(response.name()).isEqualTo("iPhone 15 Plus");
         assertThat(response.brand().id()).isEqualTo(brandId);
@@ -389,10 +390,10 @@ class DeviceServiceTest {
                 .build();
 
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
-        when(deviceRepository.save(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(deviceRepository.saveAndFlush(any(Device.class))).thenAnswer(inv -> inv.getArgument(0));
 
         DevicePatchRequest request = new DevicePatchRequest(null, null, DeviceState.INACTIVE);
-        DeviceResponse response = deviceService.updateDevicePartially(deviceId, request);
+        DeviceResponse response = deviceService.updateDevicePartially(deviceId, request, null);
 
         assertThat(response.state()).isEqualTo(DeviceState.INACTIVE);
         assertThat(response.name()).isEqualTo("MacBook Pro");
@@ -418,11 +419,11 @@ class DeviceServiceTest {
 
         DevicePatchRequest request = new DevicePatchRequest("MacBook Air", null, null);
 
-        assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request))
+        assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request, null))
                 .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("name cannot be updated when device is in use");
 
-        verify(deviceRepository, never()).save(any());
+        verify(deviceRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -447,11 +448,11 @@ class DeviceServiceTest {
 
         DevicePatchRequest request = new DevicePatchRequest(null, otherBrandId, null);
 
-        assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request))
+        assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request, null))
                 .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("brand cannot be updated when device is in use");
 
-        verify(deviceRepository, never()).save(any());
+        verify(deviceRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -467,7 +468,7 @@ class DeviceServiceTest {
 
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
 
-        deviceService.deleteDevice(deviceId);
+        deviceService.deleteDevice(deviceId, null);
 
         verify(deviceRepository, times(1)).delete(existing);
     }
@@ -485,7 +486,7 @@ class DeviceServiceTest {
 
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> deviceService.deleteDevice(deviceId))
+        assertThatThrownBy(() -> deviceService.deleteDevice(deviceId, null))
                 .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("cannot be deleted while it is in use");
 
@@ -498,10 +499,33 @@ class DeviceServiceTest {
         UUID deviceId = UUID.randomUUID();
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> deviceService.deleteDevice(deviceId))
+        assertThatThrownBy(() -> deviceService.deleteDevice(deviceId, null))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(deviceId.toString());
 
         verify(deviceRepository, never()).delete(any(Device.class));
+    }
+
+    @Test
+    @DisplayName("updateDevicePartially throws PreconditionFailedException when expected version is stale")
+    void shouldRejectPatchWithStaleVersion() {
+        UUID deviceId = UUID.randomUUID();
+        Device existing = Device.builder()
+                .id(deviceId)
+                .name("Phone")
+                .brand(Brand.builder().id(UUID.randomUUID()).name("Apple").build())
+                .state(DeviceState.AVAILABLE)
+                .version(2L)
+                .build();
+
+        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
+
+        DevicePatchRequest request = new DevicePatchRequest("New name", null, null);
+
+        assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request, 1L))
+                .isInstanceOf(PreconditionFailedException.class)
+                .hasMessageContaining("version 2");
+
+        verify(deviceRepository, never()).saveAndFlush(any());
     }
 }

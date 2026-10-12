@@ -10,5 +10,6 @@ public record DeviceResponse(
         String name,
         BrandResponse brand,
         DeviceState state,
-        Instant createdAt
+        Instant createdAt,
+        Long version
 ) {}
