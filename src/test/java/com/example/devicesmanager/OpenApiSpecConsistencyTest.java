@@ -8,6 +8,7 @@ import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
 import com.example.devicesmanager.dto.ErrorResponse;
 import com.example.devicesmanager.dto.FieldErrorResponse;
+import com.example.devicesmanager.dto.PageResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -49,7 +50,9 @@ class OpenApiSpecConsistencyTest {
             "DeviceUpdateRequest", DeviceUpdateRequest.class,
             "DevicePatchRequest", DevicePatchRequest.class,
             "ErrorResponse", ErrorResponse.class,
-            "FieldError", FieldErrorResponse.class
+            "FieldError", FieldErrorResponse.class,
+            "DevicePage", PageResponse.class,
+            "BrandPage", PageResponse.class
     );
 
     @Autowired

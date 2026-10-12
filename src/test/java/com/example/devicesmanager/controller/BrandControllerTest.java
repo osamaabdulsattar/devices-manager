@@ -68,9 +68,24 @@ class BrandControllerTest {
     void shouldReturnAllBrands() throws Exception {
         mockMvc.perform(get(ApiConstants.BRANDS_PATH).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].name").value("Apple"))
-                .andExpect(jsonPath("$[1].name").value("Samsung"));
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[0].name").value("Apple"))
+                .andExpect(jsonPath("$.content[1].name").value("Samsung"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/brands?page&size paginates brands")
+    void shouldPaginateBrands() throws Exception {
+        mockMvc.perform(get(ApiConstants.BRANDS_PATH)
+                        .param("page", "1")
+                        .param("size", "1")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name").value("Samsung"))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2));
     }
 
     @Test

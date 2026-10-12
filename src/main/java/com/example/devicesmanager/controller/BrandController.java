@@ -3,10 +3,13 @@ package com.example.devicesmanager.controller;
 import com.example.devicesmanager.constant.ApiConstants;
 import com.example.devicesmanager.dto.BrandRequest;
 import com.example.devicesmanager.dto.BrandResponse;
+import com.example.devicesmanager.dto.PageResponse;
 import com.example.devicesmanager.service.BrandService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -30,9 +32,11 @@ public class BrandController {
     private final BrandService brandService;
 
     @GetMapping
-    public ResponseEntity<List<BrandResponse>> getBrands() {
-        log.debug("GET /api/v1/brands");
-        return ResponseEntity.ok(brandService.getBrands());
+    public ResponseEntity<PageResponse<BrandResponse>> getBrands(
+            @PageableDefault(size = 20, sort = "name") Pageable pageable
+    ) {
+        log.debug("GET /api/v1/brands: pageable={}", pageable);
+        return ResponseEntity.ok(brandService.getBrands(pageable));
     }
 
     @GetMapping("/{id}")

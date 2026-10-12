@@ -63,8 +63,8 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "var jsonData = pm.response.json();",
-                  "if (Array.isArray(jsonData) && jsonData.length > 0) {",
-                  "    pm.collectionVariables.set(\"brandId\", jsonData[0].id);",
+                  "if (jsonData.content && jsonData.content.length > 0) {",
+                  "    pm.collectionVariables.set(\"brandId\", jsonData.content[0].id);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -214,10 +214,10 @@
                   "});",
                   "pm.test(\"Response is an array\", function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(Array.isArray(jsonData)).to.be.true;",
-                  "    if (jsonData.length > 0) {",
-                  "        pm.collectionVariables.set(\"deviceId\", jsonData[0].id);",
-                  "        pm.collectionVariables.set(\"brandId\", jsonData[0].brand.id);",
+                  "    pm.expect(Array.isArray(jsonData.content)).to.be.true;",
+                  "    if (jsonData.content.length > 0) {",
+                  "        pm.collectionVariables.set(\"deviceId\", jsonData.content[0].id);",
+                  "        pm.collectionVariables.set(\"brandId\", jsonData.content[0].brand.id);",
                   "    }",
                   "});"
                 ],
@@ -408,6 +408,44 @@
               ]
             },
             "description": "Combined filter: brand name + state."
+          }
+        },
+        {
+          "name": "Fetch Devices Page (sorted by name)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/devices?page=0&size=2&sort=name,asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "devices"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "2"
+                },
+                {
+                  "key": "sort",
+                  "value": "name,asc"
+                }
+              ]
+            },
+            "description": "Returns the first page of 2 devices sorted by name, with page metadata."
           }
         },
         {

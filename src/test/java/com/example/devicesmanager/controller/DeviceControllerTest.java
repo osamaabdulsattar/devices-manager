@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -88,12 +89,12 @@ class DeviceControllerTest {
     void shouldReturnAllDevices() throws Exception {
         mockMvc.perform(get(ApiConstants.DEVICES_PATH).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(3)))
-                .andExpect(jsonPath("$[*].name", containsInAnyOrder("iPhone 15 Pro", "MacBook Pro", "Galaxy S24")))
-                .andExpect(jsonPath("$[0].id").isNotEmpty())
-                .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
-                .andExpect(jsonPath("$[0].brand.id").isNotEmpty())
-                .andExpect(jsonPath("$[0].brand.name").isNotEmpty());
+                .andExpect(jsonPath("$.content", hasSize(3)))
+                .andExpect(jsonPath("$.content[*].name", containsInAnyOrder("iPhone 15 Pro", "MacBook Pro", "Galaxy S24")))
+                .andExpect(jsonPath("$.content[0].id").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].brand.id").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].brand.name").isNotEmpty());
     }
 
     @Test
@@ -103,7 +104,7 @@ class DeviceControllerTest {
 
         mockMvc.perform(get(ApiConstants.DEVICES_PATH).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+                .andExpect(jsonPath("$.content", hasSize(0)));
     }
 
     @Test
@@ -113,8 +114,8 @@ class DeviceControllerTest {
                         .param("brandId", apple.getId().toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[*].name", containsInAnyOrder("iPhone 15 Pro", "MacBook Pro")));
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[*].name", containsInAnyOrder("iPhone 15 Pro", "MacBook Pro")));
     }
 
     @Test
@@ -124,7 +125,7 @@ class DeviceControllerTest {
                         .param("brandId", UUID.randomUUID().toString())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+                .andExpect(jsonPath("$.content", hasSize(0)));
     }
 
     @Test
@@ -134,8 +135,8 @@ class DeviceControllerTest {
                         .param("brandName", "app")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[*].name", containsInAnyOrder("iPhone 15 Pro", "MacBook Pro")));
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[*].name", containsInAnyOrder("iPhone 15 Pro", "MacBook Pro")));
     }
 
     @Test
@@ -145,9 +146,9 @@ class DeviceControllerTest {
                         .param("state", "in-use")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].name").value("MacBook Pro"))
-                .andExpect(jsonPath("$[0].state").value("in-use"));
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name").value("MacBook Pro"))
+                .andExpect(jsonPath("$.content[0].state").value("in-use"));
     }
 
     @Test
@@ -158,9 +159,9 @@ class DeviceControllerTest {
                         .param("state", "available")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].name").value("iPhone 15 Pro"))
-                .andExpect(jsonPath("$[0].state").value("available"));
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name").value("iPhone 15 Pro"))
+                .andExpect(jsonPath("$.content[0].state").value("available"));
     }
 
     @Test
@@ -182,6 +183,86 @@ class DeviceControllerTest {
     }
 
     // --- GET /api/v1/devices/{id} tests ---
+
+    // --- Pagination & sorting tests ---
+
+    @Test
+    @DisplayName("GET /api/v1/devices returns page metadata and newest devices first by default")
+    void shouldReturnFirstPageWithDefaults() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH).accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Galaxy S24"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/devices?page&size splits results into pages")
+    void shouldPaginateDevices() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH)
+                        .param("page", "0")
+                        .param("size", "2")
+                        .param("sort", "createdAt,asc")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].name", contains("iPhone 15 Pro", "MacBook Pro")))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2));
+
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH)
+                        .param("page", "1")
+                        .param("size", "2")
+                        .param("sort", "createdAt,asc")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].name", contains("Galaxy S24")))
+                .andExpect(jsonPath("$.page").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/devices paginates filtered results")
+    void shouldPaginateFilteredDevices() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH)
+                        .param("brandId", apple.getId().toString())
+                        .param("size", "1")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/devices?sort=brand.name,desc sorts by a brand property")
+    void shouldSortDevicesByBrandName() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH)
+                        .param("sort", "brand.name,desc")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].brand.name").value("Samsung"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/devices caps the page size at 100")
+    void shouldCapPageSize() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH)
+                        .param("size", "1000")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(100));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/devices returns 400 for an unknown sort property")
+    void shouldReturnBadRequestForUnknownSortProperty() throws Exception {
+        mockMvc.perform(get(ApiConstants.DEVICES_PATH)
+                        .param("sort", "colour,asc")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("Invalid sort property 'colour'")));
+    }
 
     @Test
     @DisplayName("GET /api/v1/devices/{id} returns 200 with device details")

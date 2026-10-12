@@ -5,12 +5,16 @@ import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
+import com.example.devicesmanager.dto.PageResponse;
 import com.example.devicesmanager.exception.PreconditionFailedException;
 import com.example.devicesmanager.model.DeviceState;
 import com.example.devicesmanager.service.DeviceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ETag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -39,13 +43,15 @@ public class DeviceController {
     private final DeviceService deviceService;
 
     @GetMapping
-    public ResponseEntity<List<DeviceResponse>> getDevices(
+    public ResponseEntity<PageResponse<DeviceResponse>> getDevices(
             @RequestParam(name = "brandId", required = false) UUID brandId,
             @RequestParam(name = "brandName", required = false) String brandName,
-            @RequestParam(name = "state", required = false) DeviceState state
+            @RequestParam(name = "state", required = false) DeviceState state,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        log.debug("GET /api/v1/devices: brandId={}, brandName={}, state={}", brandId, brandName, state);
-        List<DeviceResponse> devices = deviceService.getDevices(brandId, brandName, state);
+        log.debug("GET /api/v1/devices: brandId={}, brandName={}, state={}, pageable={}",
+                brandId, brandName, state, pageable);
+        PageResponse<DeviceResponse> devices = deviceService.getDevices(brandId, brandName, state, pageable);
         return ResponseEntity.ok(devices);
     }
 

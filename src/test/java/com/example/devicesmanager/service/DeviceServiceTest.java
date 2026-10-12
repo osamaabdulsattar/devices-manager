@@ -4,6 +4,7 @@ import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
+import com.example.devicesmanager.dto.PageResponse;
 import com.example.devicesmanager.exception.DeviceInUseException;
 import com.example.devicesmanager.exception.InvalidReferenceException;
 import com.example.devicesmanager.exception.PreconditionFailedException;
@@ -19,6 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
@@ -44,7 +49,7 @@ class DeviceServiceTest {
     private DeviceService deviceService;
 
     @Test
-    @DisplayName("getDevices delegates to repository with specifications and maps to DTOs")
+    @DisplayName("getDevices delegates to repository with specifications and maps to a page of DTOs")
     void shouldReturnMappedDeviceResponses() {
         UUID deviceId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
@@ -63,12 +68,15 @@ class DeviceServiceTest {
                 .createdAt(now)
                 .build();
 
-        when(deviceRepository.findAll(any(Specification.class))).thenReturn(List.of(device));
+        when(deviceRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(device)));
 
-        List<DeviceResponse> results = deviceService.getDevices(brandId, "Apple", DeviceState.AVAILABLE);
+        PageResponse<DeviceResponse> results =
+                deviceService.getDevices(brandId, "Apple", DeviceState.AVAILABLE, PageRequest.of(0, 20));
 
-        assertThat(results).hasSize(1);
-        DeviceResponse response = results.getFirst();
+        assertThat(results.content()).hasSize(1);
+        assertThat(results.totalElements()).isEqualTo(1);
+        DeviceResponse response = results.content().getFirst();
         assertThat(response.id()).isEqualTo(deviceId);
         assertThat(response.name()).isEqualTo("iPhone 15 Pro");
         assertThat(response.brand().id()).isEqualTo(brandId);
@@ -76,18 +84,18 @@ class DeviceServiceTest {
         assertThat(response.state()).isEqualTo(DeviceState.AVAILABLE);
         assertThat(response.createdAt()).isEqualTo(now);
 
-        verify(deviceRepository, times(1)).findAll(any(Specification.class));
+        verify(deviceRepository, times(1)).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
-    @DisplayName("getDevices returns empty list when repository returns no devices")
+    @DisplayName("getDevices returns an empty page when repository returns no devices")
     void shouldReturnEmptyListWhenNoDevicesFound() {
-        when(deviceRepository.findAll(any(Specification.class))).thenReturn(List.of());
+        when(deviceRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
-        List<DeviceResponse> results = deviceService.getDevices(null, null, null);
+        PageResponse<DeviceResponse> results = deviceService.getDevices(null, null, null, PageRequest.of(0, 20));
 
-        assertThat(results).isEmpty();
-        verify(deviceRepository, times(1)).findAll(any(Specification.class));
+        assertThat(results.content()).isEmpty();
+        verify(deviceRepository, times(1)).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test

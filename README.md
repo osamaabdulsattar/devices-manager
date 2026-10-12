@@ -104,7 +104,7 @@ A pre-configured Postman Collection is provided in the repository:
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `POST` | `/api/v1/devices` | **Create Device**: Creates a new device associated with an existing brand (`name`, `brandId`, optional `state`). |
-| `GET` | `/api/v1/devices` | **Fetch Devices**: Retrieves all devices. Optional, combinable query filters: `?brandId=`, `?brandName=`, `?state=` (e.g. `?state=available&brandId=...`). |
+| `GET` | `/api/v1/devices` | **Fetch Devices**: Retrieves a page of devices (newest first). Optional, combinable query filters: `?brandId=`, `?brandName=`, `?state=` (e.g. `?state=available&brandId=...`), plus [pagination](#pagination--sorting). |
 | `GET` | `/api/v1/devices/{id}` | **Fetch Single Device**: Retrieves details of a device by its ID. |
 | `PUT` | `/api/v1/devices/{id}` | **Full Update**: Replaces all attributes (`name`, `brandId`, `state`) of an existing device. |
 | `PATCH` | `/api/v1/devices/{id}` | **Partial Update**: Updates only the provided fields of an existing device. |
@@ -130,13 +130,28 @@ A pre-configured Postman Collection is provided in the repository:
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/brands` | **Fetch All Brands**: Retrieves all registered brands, sorted by name. |
+| `GET` | `/api/v1/brands` | **Fetch Brands**: Retrieves a page of brands, sorted by name, with [pagination](#pagination--sorting). |
 | `POST` | `/api/v1/brands` | **Create Brand**: Registers a new brand (`name`, unique case-insensitively; `409` if taken). |
 | `GET` | `/api/v1/brands/{id}` | **Fetch Single Brand**: Retrieves brand details by ID. |
 | `PUT` | `/api/v1/brands/{id}` | **Update Brand**: Renames a brand. |
 | `DELETE` | `/api/v1/brands/{id}` | **Delete Brand**: Deletes a brand; `409` while devices are still associated with it. |
 
 To list a brand's devices, use `GET /api/v1/devices?brandId={id}`.
+
+### Pagination & Sorting
+
+Both list endpoints are paginated and accept:
+
+| Parameter | Default | Description |
+| :--- | :--- | :--- |
+| `page` | `0` | Zero-based page index |
+| `size` | `20` | Page size, capped at `100` |
+| `sort` | `createdAt,desc` (devices), `name,asc` (brands) | `property[,asc\|desc]`, repeatable. Devices: `name`, `state`, `createdAt`, `brand.name`. Brands: `name`. Unknown properties return `400`. |
+
+Responses wrap the items with page metadata:
+```json
+{ "content": [ ... ], "page": 0, "size": 20, "totalElements": 42, "totalPages": 3 }
+```
 
 ---
 
@@ -146,13 +161,13 @@ To list a brand's devices, use `GET /api/v1/devices?brandId={id}`.
 - **Only name and brand are locked while a device is `in-use`.** Changing the state is always allowed, otherwise an in-use device could never be released. A request that repeats the current name/brand unchanged is accepted, so a full `PUT` that only changes the state works.
 - **`PUT` replaces all fields, `PATCH` updates only the fields provided.** `null`/omitted fields in a `PATCH` are left unchanged.
 - **Status codes:** `400` for malformed input or validation errors, `404` only when the resource in the URL does not exist, `422` when the body references a brand that does not exist (`brandId`), `409` when a valid request breaks a business rule (in-use device, brand still referenced, duplicate brand name, concurrent write), `412` for a stale `If-Match`.
+- **Pagination is always on** for list endpoints, with a capped page size, so a list request can never load the whole table. The ID is appended as a final sort key so pages stay stable when sort values tie.
 - **Optimistic locking** (`@Version`) prevents lost updates. The version is exposed as an `ETag` so clients can opt in to conditional writes via `If-Match`; without the header the last write wins.
 - **Contract-first API:** `openapi.yaml` is the source of truth for clients and is checked against the code by a test, instead of being generated from annotations.
 - **Database:** the schema is owned by Flyway migrations (`ddl-auto=validate`), and tests run on the same PostgreSQL version as production.
 
 ## Future Improvements
 
-- **Pagination & sorting** on `GET /api/v1/devices` (Spring Data `Pageable`) before device counts grow large.
 - **Authentication & authorization**: OAuth2 resource server with JWTs and scopes such as `devices:read` / `devices:write`.
 - **Audit trail / soft deletes**: keep a history of who changed or removed a device (e.g. Hibernate Envers or a `deleted_at` column).
 - **Metrics & tracing**: Micrometer/Prometheus metrics and OpenTelemetry traces with correlation IDs in structured logs.

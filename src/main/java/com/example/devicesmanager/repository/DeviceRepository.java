@@ -1,13 +1,14 @@
 package com.example.devicesmanager.repository;
 
 import com.example.devicesmanager.model.Device;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,7 +18,7 @@ public interface DeviceRepository extends JpaRepository<Device, UUID>, JpaSpecif
     // Fetch the brand in the same query: every response includes it, so a lazy load would cause N+1 queries.
     @Override
     @EntityGraph(attributePaths = "brand")
-    List<Device> findAll(Specification<Device> spec);
+    Page<Device> findAll(Specification<Device> spec, Pageable pageable);
 
     @Override
     @EntityGraph(attributePaths = "brand")

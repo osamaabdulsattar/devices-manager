@@ -5,6 +5,7 @@ import com.example.devicesmanager.dto.FieldErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -80,6 +81,16 @@ public class GlobalExceptionHandler {
     ) {
         log.warn("Parameter type mismatch: {} = {}", ex.getName(), ex.getValue());
         String message = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getName());
+        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSortProperty(
+            PropertyReferenceException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Invalid sort property: {}", ex.getPropertyName());
+        String message = String.format("Invalid sort property '%s'", ex.getPropertyName());
         return buildResponse(HttpStatus.BAD_REQUEST, message, request);
     }
 

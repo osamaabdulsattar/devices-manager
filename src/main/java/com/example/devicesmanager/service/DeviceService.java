@@ -4,6 +4,7 @@ import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
+import com.example.devicesmanager.dto.PageResponse;
 import com.example.devicesmanager.exception.DeviceInUseException;
 import com.example.devicesmanager.exception.InvalidReferenceException;
 import com.example.devicesmanager.exception.PreconditionFailedException;
@@ -15,12 +16,13 @@ import com.example.devicesmanager.model.DeviceState;
 import com.example.devicesmanager.repository.BrandRepository;
 import com.example.devicesmanager.repository.DeviceRepository;
 import com.example.devicesmanager.repository.DeviceSpecifications;
+import com.example.devicesmanager.repository.Pageables;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -31,16 +33,14 @@ public class DeviceService {
     private final BrandRepository brandRepository;
 
     @Transactional(readOnly = true)
-    public List<DeviceResponse> getDevices(UUID brandId, String brandName, DeviceState state) {
+    public PageResponse<DeviceResponse> getDevices(UUID brandId, String brandName, DeviceState state, Pageable pageable) {
         Specification<Device> spec = Specification
                 .where(DeviceSpecifications.hasBrandId(brandId))
                 .and(DeviceSpecifications.hasBrandNameLike(brandName))
                 .and(DeviceSpecifications.hasState(state));
 
-        return deviceRepository.findAll(spec)
-                .stream()
-                .map(DeviceMapper::toResponse)
-                .toList();
+        return PageResponse.from(deviceRepository.findAll(spec, Pageables.withIdTieBreaker(pageable))
+                .map(DeviceMapper::toResponse));
     }
 
     @Transactional(readOnly = true)

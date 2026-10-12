@@ -2,18 +2,19 @@ package com.example.devicesmanager.service;
 
 import com.example.devicesmanager.dto.BrandRequest;
 import com.example.devicesmanager.dto.BrandResponse;
+import com.example.devicesmanager.dto.PageResponse;
 import com.example.devicesmanager.exception.ConflictException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.mapper.BrandMapper;
 import com.example.devicesmanager.model.Brand;
 import com.example.devicesmanager.repository.BrandRepository;
 import com.example.devicesmanager.repository.DeviceRepository;
+import com.example.devicesmanager.repository.Pageables;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -24,11 +25,9 @@ public class BrandService {
     private final DeviceRepository deviceRepository;
 
     @Transactional(readOnly = true)
-    public List<BrandResponse> getBrands() {
-        return brandRepository.findAll(Sort.by("name"))
-                .stream()
-                .map(BrandMapper::toResponse)
-                .toList();
+    public PageResponse<BrandResponse> getBrands(Pageable pageable) {
+        return PageResponse.from(brandRepository.findAll(Pageables.withIdTieBreaker(pageable))
+                .map(BrandMapper::toResponse));
     }
 
     @Transactional(readOnly = true)
