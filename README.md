@@ -2,7 +2,7 @@
 
 [![Latest Release](https://img.shields.io/github/v/release/osamaabdulsattar/devices-manager)](https://github.com/osamaabdulsattar/devices-manager/releases)
 
-A Java 21 Spring Boot REST service with PostgreSQL connection, Lombok support, SpringDoc OpenAPI (Swagger UI), and Gradle build tool.
+A Java 21 Spring Boot REST service for managing devices and their brands, backed by PostgreSQL.
 
 Tagged releases (with release notes and a matching versioned Docker image published to GHCR) are available on the [Releases page](https://github.com/osamaabdulsattar/devices-manager/releases).
 
@@ -14,7 +14,8 @@ Tagged releases (with release notes and a matching versioned Docker image publis
 - **Database**: PostgreSQL (with Spring Data JPA / Hibernate)
 - **Database Migrations**: Flyway
 - **Utilities**: Lombok (boilerplate reduction)
-- **Testing**: JUnit 5, Spring Boot Test, MockMvc, H2 (in-memory test database)
+- **Observability**: Spring Boot Actuator (health, liveness & readiness probes)
+- **Testing**: JUnit 5, Spring Boot Test, MockMvc, Testcontainers (PostgreSQL), JaCoCo coverage
 
 ---
 
@@ -42,25 +43,31 @@ Default connection settings:
 - **Password**: `postgres`
 
 ### 3. Build & Run the Application Locally
-Run locally using the Gradle wrapper:
+Run locally using the Gradle wrapper (the `dev` profile logs SQL statements and enables debug logging):
 ```bash
-./gradlew bootRun
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 Or build the executable JAR / Docker image:
 ```bash
 # Build executable JAR
 ./gradlew bootJar
-java -jar build/libs/devices-manager-0.0.1-SNAPSHOT.jar
+java -jar build/libs/devices-manager.jar
 
 # Build standalone Docker image
 docker build -t devices-manager .
 ```
 
+Health checks are exposed at `/actuator/health`, `/actuator/health/liveness` and `/actuator/health/readiness`.
+
 ### 4. Running Tests
-Run the test suite (uses embedded in-memory database for testing without requiring a live PostgreSQL instance):
+Integration tests run against a real PostgreSQL 16 container started by Testcontainers, so **Docker must be running**:
 ```bash
 ./gradlew test
 ```
+A coverage report is generated at `build/reports/jacoco/test/html/index.html`.
+
+The OpenAPI specification is written by hand (contract first). `OpenApiSpecConsistencyTest` fails the build if a documented
+endpoint is not implemented (or the other way round), or if a documented schema's fields differ from its DTO.
 
 ---
 
@@ -77,15 +84,16 @@ Once the application is running, the interactive Swagger UI and OpenAPI specific
 ## Testing with Postman
 
 A pre-configured Postman Collection is provided in the repository:
-- **Collection File**: [`postman/devices-manager.postman_collection.json`](file:///Users/osama/workspace/devices-manager/postman/devices-manager.postman_collection.json)
+- **Collection File**: [`postman/devices-manager.postman_collection.json`](postman/devices-manager.postman_collection.json)
 
 ### How to use:
 1. Open **Postman** -> click **Import** -> select `postman/devices-manager.postman_collection.json`.
-2. The collection includes the following folders:
+2. The folders are ordered so the whole collection can be run top to bottom on an empty database:
+   - **Brands**: Fetch all, create, fetch single, update.
    - **Devices**: Fetch all, filter by state, filter by brand, combined filters, fetch single, create, update, delete.
-   - **Brands**: Fetch all, create, fetch single, update, delete.
+   - **Cleanup**: Delete the brand (only possible once it has no devices).
    - **Documentation**: Raw OpenAPI spec.
-3. **Automated Variables**: The collection defines `baseUrl` (default `http://localhost:8080`), `brandId`, and `deviceId`. Creating or fetching resources automatically updates `brandId` and `deviceId` for subsequent requests.
+3. **Automated Variables**: The collection defines `baseUrl` (default `http://localhost:8080`), `brandId`, `deviceId` and `deviceETag`. Creating or fetching resources automatically updates them for subsequent requests; `deviceETag` is sent as `If-Match` on device updates and deletes.
 
 ---
 
@@ -108,11 +116,13 @@ A pre-configured Postman Collection is provided in the repository:
 - **`brand`**: Associated Brand entity (`id`, `name`)
 - **`state`**: Operational state (`available`, `in-use`, `inactive`)
 - **`createdAt`**: Creation timestamp (ISO-8601)
+- **`version`**: Incremented on every change; also returned as the `ETag` header
 
 #### Domain Validations
 - **Creation Time Immutability**: Creation time (`createdAt`) is auto-generated upon creation and cannot be updated.
-- **In-Use Device Protection (Update)**: Name and brand properties cannot be updated while the device state is `in-use`.
-- **In-Use Device Protection (Delete)**: A device cannot be deleted while its state is `in-use`.
+- **In-Use Device Protection (Update)**: Name and brand properties cannot be updated while the device state is `in-use` (`409 Conflict`).
+- **In-Use Device Protection (Delete)**: A device cannot be deleted while its state is `in-use` (`409 Conflict`).
+- **Conditional Updates**: `PUT`, `PATCH` and `DELETE` accept an optional `If-Match` header with the device's `ETag`; a stale value returns `412 Precondition Failed`.
 
 ---
 
@@ -120,47 +130,30 @@ A pre-configured Postman Collection is provided in the repository:
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/brands` | **Fetch All Brands**: Retrieves list of all registered brands. |
-| `POST` | `/api/v1/brands` | **Create Brand**: Registers a new brand entity (`name`). |
+| `GET` | `/api/v1/brands` | **Fetch All Brands**: Retrieves all registered brands, sorted by name. |
+| `POST` | `/api/v1/brands` | **Create Brand**: Registers a new brand (`name`, unique case-insensitively; `409` if taken). |
 | `GET` | `/api/v1/brands/{id}` | **Fetch Single Brand**: Retrieves brand details by ID. |
-| `PUT` | `/api/v1/brands/{id}` | **Update Brand**: Updates brand name. |
-| `DELETE` | `/api/v1/brands/{id}` | **Delete Brand**: Deletes a brand entity (when no devices are associated). |
+| `PUT` | `/api/v1/brands/{id}` | **Update Brand**: Renames a brand. |
+| `DELETE` | `/api/v1/brands/{id}` | **Delete Brand**: Deletes a brand; `409` while devices are still associated with it. |
 
 To list a brand's devices, use `GET /api/v1/devices?brandId={id}`.
 
 ---
 
-## Future Improvements & Production Roadmap
+## Design Decisions & Assumptions
 
-Below are recommended architectural, operational, and feature enhancements to take this service from MVP to an enterprise-grade production platform:
+- **Brand is a separate entity** rather than a free-text field, so brand names stay consistent and devices can be filtered by brand reliably. Brand names are unique case-insensitively and trimmed.
+- **Only name and brand are locked while a device is `in-use`.** Changing the state is always allowed, otherwise an in-use device could never be released. A request that repeats the current name/brand unchanged is accepted, so a full `PUT` that only changes the state works.
+- **`PUT` replaces all fields, `PATCH` updates only the fields provided.** `null`/omitted fields in a `PATCH` are left unchanged.
+- **Status codes:** `400` for malformed input or validation errors, `404` for unknown IDs (including a referenced brand), `409` when a valid request breaks a business rule (in-use device, brand still referenced, duplicate brand name, concurrent write), `412` for a stale `If-Match`.
+- **Optimistic locking** (`@Version`) prevents lost updates. The version is exposed as an `ETag` so clients can opt in to conditional writes via `If-Match`; without the header the last write wins.
+- **Contract-first API:** `openapi.yaml` is the source of truth for clients and is checked against the code by a test, instead of being generated from annotations.
+- **Database:** the schema is owned by Flyway migrations (`ddl-auto=validate`), and tests run on the same PostgreSQL version as production.
 
-### 1. Security & Access Governance
-- **OAuth2 / OIDC Authentication**: Integrate with an identity provider (e.g., Keycloak, Auth0, Okta, or AWS Cognito) using Spring Security OAuth2 Resource Server with JWT validation.
-- **Role-Based Access Control (RBAC)**: Enforce granular scopes and permissions (e.g., `devices:read`, `devices:write`, `devices:delete`, `admin`) to protect sensitive administrative actions.
-- **Audit Logging & Entity Versioning**: Implement Spring Data Envers or database triggers to maintain an immutable audit trail of who modified or deleted devices, capturing timestamps, caller identity, and state diffs.
+## Future Improvements
 
-### 2. Observability & Reliability
-- **Spring Boot Actuator**: Add `/actuator/health/liveness` and `/actuator/health/readiness` probes for Kubernetes orchestration, alongside `/actuator/metrics`.
-- **OpenTelemetry (OTel) & Distributed Tracing**: Export distributed traces and span contexts to APM backends (such as New Relic, Datadog, Jaeger, or Grafana Tempo) for end-to-end request visibility.
-- **Prometheus Metrics**: Expose application and JVM metrics via Micrometer for alerting and monitoring dashboards.
-- **Structured JSON Logging**: Standardize application logs to structured JSON (e.g., Logstash Logback Encoder) with correlation IDs (`traceId`, `spanId`) for ingestion by ELK, Loki, or Datadog.
-
-### 3. API Scalability & Concurrency Control
-- **Pagination & Sorting**: Transition `GET /api/v1/devices` to support Spring Data `Pageable` (`page`, `size`, `sort`) to avoid high memory consumption and slow queries when device counts scale into thousands or millions.
-- **HTTP `ETag` / `If-Match` Support**: Entity versioning (`@Version`) is already in place to reject lost updates with a `409 Conflict`; expose that version via HTTP `ETag` and `If-Match` headers for standards-based conditional requests.
-- **Rate Limiting & Throttling**: Protect public and high-throughput endpoints using Token Bucket algorithms (e.g., Bucket4j or Redis-backed rate limiters).
-
-### 4. Data Architecture & Performance
-- **Caching Layer**: Cache frequent read operations (such as brand lookups or device queries by ID) using Redis and Spring Cache, with cache eviction on state changes.
-- **Soft Deletes**: In enterprise asset management, replace physical deletions with soft deletion (`deleted_at` timestamp or `@SQLRestriction`) to retain compliance and historical audit data.
-- **Composite Database Indexes**: Add composite indexes (e.g., on `(brand_id, state)`) to optimize multi-criteria filtering queries at scale.
-
-### 5. Event-Driven Architecture
-- **Domain Event Publishing**: Publish lifecycle events (`DeviceCreatedEvent`, `DeviceStateChangedEvent`, `DeviceDeletedEvent`) to an event broker like Apache Kafka or RabbitMQ to decouple downstream consumers (inventory, billing, reporting).
-- **Transactional Outbox Pattern**: Ensure reliable message delivery by persisting domain events within the same database transaction as business entities.
-
-### 6. Cloud-Native Delivery & CI/CD
-- **Kubernetes Helm Chart**: Package deployment manifests (Deployment, Service, Ingress, Horizontal Pod Autoscaler, PodDisruptionBudget, ConfigMaps, and Secrets) into a reusable Helm chart.
-- **SonarQube Code Quality Gate**: Integrate SonarQube/SonarCloud into the CI pipeline for deeper static analysis than SpotBugs alone (code smells, duplication, test coverage, security hotspots), enforced as a merge-blocking quality gate. Requires a SonarQube server/account and a `SONAR_TOKEN` secret.
-- **Aikido Security Scanning**: Add Aikido Security to the CI pipeline for unified SAST, open-source dependency (SCA) scanning, container image scanning, and secrets detection, with findings surfaced directly on pull requests. Requires an Aikido account and API key.
-
+- **Pagination & sorting** on `GET /api/v1/devices` (Spring Data `Pageable`) before device counts grow large.
+- **Authentication & authorization**: OAuth2 resource server with JWTs and scopes such as `devices:read` / `devices:write`.
+- **Audit trail / soft deletes**: keep a history of who changed or removed a device (e.g. Hibernate Envers or a `deleted_at` column).
+- **Metrics & tracing**: Micrometer/Prometheus metrics and OpenTelemetry traces with correlation IDs in structured logs.
+- **Domain events**: publish device state changes (e.g. via a transactional outbox) for downstream consumers.
