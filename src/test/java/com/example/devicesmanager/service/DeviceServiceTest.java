@@ -455,26 +455,6 @@ class DeviceServiceTest {
     }
 
     @Test
-    @DisplayName("updateDevicePartially throws IllegalArgumentException when name is blank")
-    void shouldRejectBlankNameInPatch() {
-        UUID deviceId = UUID.randomUUID();
-        Device existing = Device.builder()
-                .id(deviceId)
-                .name("Phone")
-                .brand(Brand.builder().id(UUID.randomUUID()).name("Apple").build())
-                .state(DeviceState.AVAILABLE)
-                .build();
-
-        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
-
-        DevicePatchRequest request = new DevicePatchRequest("   ", null, null);
-
-        assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("blank");
-    }
-
-    @Test
     @DisplayName("deleteDevice deletes device when state is not in-use")
     void shouldDeleteDeviceSuccessfully() {
         UUID deviceId = UUID.randomUUID();

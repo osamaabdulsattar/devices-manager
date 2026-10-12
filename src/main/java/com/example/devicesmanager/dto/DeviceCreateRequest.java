@@ -15,11 +15,6 @@ public record DeviceCreateRequest(
         @NotNull(message = "Brand ID must not be null")
         UUID brandId,
 
+        // Optional; the service defaults it to AVAILABLE when omitted.
         DeviceState state
-) {
-    public DeviceCreateRequest {
-        if (state == null) {
-            state = DeviceState.AVAILABLE;
-        }
-    }
-}
+) {}

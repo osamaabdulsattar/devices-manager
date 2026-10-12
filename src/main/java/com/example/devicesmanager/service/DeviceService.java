@@ -1,12 +1,12 @@
 package com.example.devicesmanager.service;
 
-import com.example.devicesmanager.dto.BrandResponse;
 import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
 import com.example.devicesmanager.exception.DeviceInUseException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
+import com.example.devicesmanager.mapper.DeviceMapper;
 import com.example.devicesmanager.model.Brand;
 import com.example.devicesmanager.model.Device;
 import com.example.devicesmanager.model.DeviceState;
@@ -37,14 +37,14 @@ public class DeviceService {
 
         return deviceRepository.findAll(spec)
                 .stream()
-                .map(this::toResponse)
+                .map(DeviceMapper::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public DeviceResponse getDeviceById(UUID id) {
         Device device = findDeviceOrThrow(id);
-        return toResponse(device);
+        return DeviceMapper.toResponse(device);
     }
 
     @Transactional
@@ -58,7 +58,7 @@ public class DeviceService {
                 .build();
 
         Device savedDevice = deviceRepository.saveAndFlush(device);
-        return toResponse(savedDevice);
+        return DeviceMapper.toResponse(savedDevice);
     }
 
     @Transactional
@@ -73,7 +73,7 @@ public class DeviceService {
         device.setState(request.state());
 
         Device updatedDevice = deviceRepository.save(device);
-        return toResponse(updatedDevice);
+        return DeviceMapper.toResponse(updatedDevice);
     }
 
     @Transactional
@@ -88,9 +88,6 @@ public class DeviceService {
         assertMutableWhileInUse(device, request.name(), request.brandId());
 
         if (request.name() != null) {
-            if (request.name().trim().isEmpty()) {
-                throw new IllegalArgumentException("Device name must not be blank");
-            }
             device.setName(request.name());
         }
 
@@ -103,7 +100,7 @@ public class DeviceService {
         }
 
         Device updatedDevice = deviceRepository.save(device);
-        return toResponse(updatedDevice);
+        return DeviceMapper.toResponse(updatedDevice);
     }
 
     @Transactional
@@ -137,15 +134,5 @@ public class DeviceService {
         if (newBrandId != null && !device.getBrand().getId().equals(newBrandId)) {
             throw new DeviceInUseException("Device brand cannot be updated when device is in use");
         }
-    }
-
-    public DeviceResponse toResponse(Device device) {
-        return new DeviceResponse(
-                device.getId(),
-                device.getName(),
-                new BrandResponse(device.getBrand().getId(), device.getBrand().getName()),
-                device.getState(),
-                device.getCreatedAt()
-        );
     }
 }

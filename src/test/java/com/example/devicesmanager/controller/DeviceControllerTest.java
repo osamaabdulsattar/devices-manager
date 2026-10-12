@@ -688,4 +688,15 @@ class DeviceControllerTest {
         assertThatThrownBy(() -> deviceRepository.saveAndFlush(staleCopy))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
     }
+
+    @Test
+    @DisplayName("PATCH /api/v1/devices/{id} accepts a multi-line name that contains text")
+    void shouldAcceptMultiLineNameInPatch() throws Exception {
+        mockMvc.perform(patch(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"iPhone\\n15\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("iPhone\n15"));
+    }
 }

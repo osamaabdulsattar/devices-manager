@@ -9,7 +9,8 @@ import java.util.UUID;
 public record DevicePatchRequest(
         // @NotBlank would also reject a null/omitted name, breaking PATCH semantics
         // where omitting the field must leave the existing name unchanged.
-        @Pattern(regexp = ".*\\S.*", message = "Device name must not be blank")
+        // (?s) lets '.' match line breaks, so multi-line names that contain text are accepted.
+        @Pattern(regexp = "(?s).*\\S.*", message = "Device name must not be blank")
         @Size(min = 1, max = 150, message = "Device name must be between 1 and 150 characters")
         String name,
 
