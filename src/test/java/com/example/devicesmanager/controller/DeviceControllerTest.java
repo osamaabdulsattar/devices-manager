@@ -252,8 +252,8 @@ class DeviceControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/devices returns 404 when referenced Brand ID does not exist")
-    void shouldReturn404WhenCreatingDeviceWithNonExistentBrand() throws Exception {
+    @DisplayName("POST /api/v1/devices returns 422 when referenced Brand ID does not exist")
+    void shouldReturn422WhenCreatingDeviceWithNonExistentBrand() throws Exception {
         UUID unknownBrandId = UUID.randomUUID();
         String payload = """
                 {
@@ -266,8 +266,8 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404));
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
     }
 
     @Test
@@ -434,8 +434,8 @@ class DeviceControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/v1/devices/{id} returns 404 when brand is not found")
-    void shouldReturn404WhenUpdatingDeviceWithNonExistentBrandViaPut() throws Exception {
+    @DisplayName("PUT /api/v1/devices/{id} returns 422 when brand is not found")
+    void shouldReturn422WhenUpdatingDeviceWithNonExistentBrandViaPut() throws Exception {
         String payload = """
                 {
                     "name": "Device A",
@@ -448,8 +448,8 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404));
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
     }
 
     @Test
@@ -583,8 +583,8 @@ class DeviceControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /api/v1/devices/{id} returns 404 when referenced brand not found")
-    void shouldReturn404WhenPatchingNonExistentBrand() throws Exception {
+    @DisplayName("PATCH /api/v1/devices/{id} returns 422 when referenced brand not found")
+    void shouldReturn422WhenPatchingNonExistentBrand() throws Exception {
         String payload = """
                 {
                     "brandId": "%s"
@@ -595,8 +595,8 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404));
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
     }
 
     @Test

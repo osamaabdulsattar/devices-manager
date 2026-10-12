@@ -5,6 +5,7 @@ import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
 import com.example.devicesmanager.exception.DeviceInUseException;
+import com.example.devicesmanager.exception.InvalidReferenceException;
 import com.example.devicesmanager.exception.PreconditionFailedException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.model.Brand;
@@ -178,7 +179,7 @@ class DeviceServiceTest {
     }
 
     @Test
-    @DisplayName("createDevice throws ResourceNotFoundException when brand does not exist")
+    @DisplayName("createDevice throws InvalidReferenceException when brand does not exist")
     void shouldThrowWhenCreatingDeviceWithUnknownBrand() {
         UUID brandId = UUID.randomUUID();
         when(brandRepository.findById(brandId)).thenReturn(Optional.empty());
@@ -186,7 +187,7 @@ class DeviceServiceTest {
         DeviceCreateRequest request = new DeviceCreateRequest("iPad Air", brandId, DeviceState.AVAILABLE);
 
         assertThatThrownBy(() -> deviceService.createDevice(request))
-                .isInstanceOf(ResourceNotFoundException.class)
+                .isInstanceOf(InvalidReferenceException.class)
                 .hasMessageContaining(brandId.toString());
 
         verify(deviceRepository, never()).saveAndFlush(any());
@@ -324,7 +325,7 @@ class DeviceServiceTest {
     }
 
     @Test
-    @DisplayName("updateDeviceFully throws ResourceNotFoundException when brand does not exist")
+    @DisplayName("updateDeviceFully throws InvalidReferenceException when brand does not exist")
     void shouldThrowWhenFullyUpdatingWithNonExistentBrand() {
         UUID deviceId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
@@ -341,7 +342,7 @@ class DeviceServiceTest {
         DeviceUpdateRequest request = new DeviceUpdateRequest("New Name", brandId, DeviceState.AVAILABLE);
 
         assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request, null))
-                .isInstanceOf(ResourceNotFoundException.class)
+                .isInstanceOf(InvalidReferenceException.class)
                 .hasMessageContaining(brandId.toString());
     }
 

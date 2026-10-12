@@ -5,6 +5,7 @@ import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
 import com.example.devicesmanager.exception.DeviceInUseException;
+import com.example.devicesmanager.exception.InvalidReferenceException;
 import com.example.devicesmanager.exception.PreconditionFailedException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.mapper.DeviceMapper;
@@ -50,7 +51,7 @@ public class DeviceService {
 
     @Transactional
     public DeviceResponse createDevice(DeviceCreateRequest request) {
-        Brand brand = findBrandOrThrow(request.brandId());
+        Brand brand = findReferencedBrand(request.brandId());
 
         Device device = Device.builder()
                 .name(request.name())
@@ -69,7 +70,7 @@ public class DeviceService {
     public DeviceResponse updateDeviceFully(UUID id, DeviceUpdateRequest request, Long expectedVersion) {
         Device device = findDeviceOrThrow(id);
         assertVersionMatches(device, expectedVersion);
-        Brand brand = findBrandOrThrow(request.brandId());
+        Brand brand = findReferencedBrand(request.brandId());
 
         assertMutableWhileInUse(device, request.name(), request.brandId());
 
@@ -92,7 +93,7 @@ public class DeviceService {
 
         Brand brand = null;
         if (request.brandId() != null) {
-            brand = findBrandOrThrow(request.brandId());
+            brand = findReferencedBrand(request.brandId());
         }
 
         assertMutableWhileInUse(device, request.name(), request.brandId());
@@ -133,9 +134,9 @@ public class DeviceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + id));
     }
 
-    private Brand findBrandOrThrow(UUID brandId) {
+    private Brand findReferencedBrand(UUID brandId) {
         return brandRepository.findById(brandId)
-                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + brandId));
+                .orElseThrow(() -> new InvalidReferenceException("Brand not found with id: " + brandId));
     }
 
     private void assertVersionMatches(Device device, Long expectedVersion) {

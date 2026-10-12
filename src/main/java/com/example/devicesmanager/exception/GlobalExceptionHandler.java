@@ -83,6 +83,15 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    @ExceptionHandler(InvalidReferenceException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidReference(
+            InvalidReferenceException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Invalid reference: {}", ex.getMessage());
+        return buildResponse(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflict(
             ConflictException ex,
