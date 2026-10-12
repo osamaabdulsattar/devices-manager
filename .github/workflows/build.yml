@@ -36,6 +36,14 @@ jobs:
           path: build/test-results/test
           retention-days: 7
 
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/reports/jacoco/test
+          retention-days: 7
+
       - name: Run static analysis (SpotBugs)
         run: ./gradlew spotbugsMain
 

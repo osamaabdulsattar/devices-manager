@@ -4,11 +4,11 @@
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /workspace
 
-# Copy gradle wrapper and configuration files
+# Copy gradle wrapper and configuration files first to cache dependencies
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
 
 # Copy source code and build executable JAR
 COPY src src
@@ -24,6 +24,9 @@ USER appuser
 
 EXPOSE 8080
 
-COPY --from=builder /workspace/build/libs/devices-manager-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=builder /workspace/build/libs/devices-manager.jar app.jar
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=5 \
+    CMD wget -qO- http://localhost:8080/actuator/health/readiness || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
