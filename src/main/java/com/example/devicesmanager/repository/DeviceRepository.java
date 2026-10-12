@@ -22,4 +22,6 @@ public interface DeviceRepository extends JpaRepository<Device, UUID>, JpaSpecif
     @Override
     @EntityGraph(attributePaths = "brand")
     Optional<Device> findById(UUID id);
+
+    boolean existsByBrandId(UUID brandId);
 }

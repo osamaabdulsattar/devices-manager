@@ -304,7 +304,7 @@ paths:
       tags:
         - Brands
       summary: Fetch all brands
-      description: Retrieves a list of all device brands.
+      description: Retrieves a list of all device brands, sorted by name.
       operationId: getAllBrands
       responses:
         '200':
@@ -326,7 +326,7 @@ paths:
       tags:
         - Brands
       summary: Create a new brand
-      description: Registers a new brand entity.
+      description: Registers a new brand entity. Leading and trailing whitespace in the name is trimmed.
       operationId: createBrand
       requestBody:
         required: true
@@ -334,7 +334,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BrandCreateRequest'
+              $ref: '#/components/schemas/BrandRequest'
       responses:
         '201':
           description: Brand created successfully
@@ -355,7 +355,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Brand name already exists
+          description: Brand name already exists (compared case-insensitively)
           content:
             application/json:
               schema:
@@ -410,7 +410,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BrandUpdateRequest'
+              $ref: '#/components/schemas/BrandRequest'
       responses:
         '200':
           description: Brand updated successfully
@@ -527,29 +527,16 @@ components:
         - id
         - name
 
-    BrandCreateRequest:
+    BrandRequest:
       type: object
-      description: Request payload for creating a new brand
+      description: Request payload for creating or updating a brand
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 100
           example: Apple
-          description: Unique name of the brand
-      required:
-        - name
-
-    BrandUpdateRequest:
-      type: object
-      description: Request payload for updating a brand
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          example: Apple Inc.
-          description: Updated brand name
+          description: Unique (case-insensitive) name of the brand
       required:
         - name
 
