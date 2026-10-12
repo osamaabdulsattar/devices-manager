@@ -375,7 +375,7 @@ class DeviceControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/v1/devices/{id} returns 400 when attempting to update name while device is in use")
+    @DisplayName("PUT /api/v1/devices/{id} returns 409 when attempting to update name while device is in use")
     void shouldRejectNameUpdateWhenDeviceInUseViaPut() throws Exception {
         String payload = """
                 {
@@ -389,13 +389,13 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value(containsString("name cannot be updated when device is in use")));
     }
 
     @Test
-    @DisplayName("PUT /api/v1/devices/{id} returns 400 when attempting to update brand while device is in use")
+    @DisplayName("PUT /api/v1/devices/{id} returns 409 when attempting to update brand while device is in use")
     void shouldRejectBrandUpdateWhenDeviceInUseViaPut() throws Exception {
         String payload = """
                 {
@@ -409,8 +409,8 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value(containsString("brand cannot be updated when device is in use")));
     }
 
@@ -530,7 +530,7 @@ class DeviceControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /api/v1/devices/{id} returns 400 when attempting to update name while device is in use")
+    @DisplayName("PATCH /api/v1/devices/{id} returns 409 when attempting to update name while device is in use")
     void shouldRejectNameUpdateWhenDeviceInUseViaPatch() throws Exception {
         String payload = """
                 {
@@ -542,13 +542,13 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value(containsString("name cannot be updated when device is in use")));
     }
 
     @Test
-    @DisplayName("PATCH /api/v1/devices/{id} returns 400 when attempting to update brand while device is in use")
+    @DisplayName("PATCH /api/v1/devices/{id} returns 409 when attempting to update brand while device is in use")
     void shouldRejectBrandUpdateWhenDeviceInUseViaPatch() throws Exception {
         String payload = """
                 {
@@ -560,8 +560,8 @@ class DeviceControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value(containsString("brand cannot be updated when device is in use")));
     }
 
@@ -641,12 +641,12 @@ class DeviceControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/devices/{id} returns 400 when attempting to delete in-use device")
+    @DisplayName("DELETE /api/v1/devices/{id} returns 409 when attempting to delete in-use device")
     void shouldRejectDeletionOfInUseDevice() throws Exception {
         mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + macbook.getId())
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value(containsString("cannot be deleted while it is in use")));
 
         // Verify device still exists

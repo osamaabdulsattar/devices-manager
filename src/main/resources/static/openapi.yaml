@@ -200,7 +200,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Device was modified concurrently by another request; retry with the latest state
+          description: |
+            The device is `in-use` and the request changes its name or brand,
+            or it was modified concurrently by another request
           content:
             application/json:
               schema:
@@ -247,7 +249,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Device was modified concurrently by another request; retry with the latest state
+          description: |
+            The device is `in-use` and the request changes its name or brand,
+            or it was modified concurrently by another request
           content:
             application/json:
               schema:
@@ -271,13 +275,19 @@ paths:
         '204':
           description: Device successfully deleted (No Content)
         '400':
-          description: Device is currently in use and cannot be deleted
+          description: Malformed device ID
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Device is currently in use and cannot be deleted
           content:
             application/json:
               schema:

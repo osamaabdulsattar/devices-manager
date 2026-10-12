@@ -5,6 +5,7 @@ import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
+import com.example.devicesmanager.exception.DeviceInUseException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.model.Brand;
 import com.example.devicesmanager.model.Device;
@@ -110,7 +111,7 @@ public class DeviceService {
         Device device = findDeviceOrThrow(id);
 
         if (device.getState() == DeviceState.IN_USE) {
-            throw new IllegalArgumentException("Device cannot be deleted while it is in use");
+            throw new DeviceInUseException("Device cannot be deleted while it is in use");
         }
 
         deviceRepository.delete(device);
@@ -131,10 +132,10 @@ public class DeviceService {
             return;
         }
         if (newName != null && !device.getName().equals(newName)) {
-            throw new IllegalArgumentException("Device name cannot be updated when device is in use");
+            throw new DeviceInUseException("Device name cannot be updated when device is in use");
         }
         if (newBrandId != null && !device.getBrand().getId().equals(newBrandId)) {
-            throw new IllegalArgumentException("Device brand cannot be updated when device is in use");
+            throw new DeviceInUseException("Device brand cannot be updated when device is in use");
         }
     }
 

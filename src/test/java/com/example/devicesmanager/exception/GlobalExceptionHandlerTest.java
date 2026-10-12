@@ -3,7 +3,9 @@ package com.example.devicesmanager.exception;
 import com.example.devicesmanager.dto.ErrorResponse;
 import com.example.devicesmanager.model.Device;
 import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -18,10 +20,16 @@ class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
+    private HttpServletRequest request;
+
+    @BeforeEach
+    void setUp() {
+        request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/api/v1/devices/" + UUID.randomUUID());
+    }
+
     @Test
     void handleOptimisticLockingReturnsConflict() {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getRequestURI()).thenReturn("/api/v1/devices/" + UUID.randomUUID());
         ObjectOptimisticLockingFailureException ex =
                 new ObjectOptimisticLockingFailureException(Device.class, UUID.randomUUID());
 
@@ -32,4 +40,17 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().status()).isEqualTo(409);
         assertThat(response.getBody().path()).isEqualTo(request.getRequestURI());
     }
+
+    @Test
+    void handleDataIntegrityViolationReturnsConflictWithoutLeakingDetails() {
+        DataIntegrityViolationException ex =
+                new DataIntegrityViolationException("duplicate key value violates unique constraint \"brands_name_key\"");
+
+        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(ex, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).doesNotContain("brands_name_key");
+    }
+
 }

@@ -4,6 +4,7 @@ import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
+import com.example.devicesmanager.exception.DeviceInUseException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.model.Brand;
 import com.example.devicesmanager.model.Device;
@@ -252,7 +253,7 @@ class DeviceServiceTest {
     }
 
     @Test
-    @DisplayName("updateDeviceFully throws IllegalArgumentException when updating name of in-use device")
+    @DisplayName("updateDeviceFully throws DeviceInUseException when updating name of in-use device")
     void shouldRejectNameUpdateWhenDeviceInUseViaPut() {
         UUID deviceId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
@@ -272,14 +273,14 @@ class DeviceServiceTest {
         DeviceUpdateRequest request = new DeviceUpdateRequest("MacBook Air", brandId, DeviceState.IN_USE);
 
         assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("name cannot be updated when device is in use");
 
         verify(deviceRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("updateDeviceFully throws IllegalArgumentException when updating brand of in-use device")
+    @DisplayName("updateDeviceFully throws DeviceInUseException when updating brand of in-use device")
     void shouldRejectBrandUpdateWhenDeviceInUseViaPut() {
         UUID deviceId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
@@ -301,7 +302,7 @@ class DeviceServiceTest {
         DeviceUpdateRequest request = new DeviceUpdateRequest("MacBook Pro", otherBrandId, DeviceState.IN_USE);
 
         assertThatThrownBy(() -> deviceService.updateDeviceFully(deviceId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("brand cannot be updated when device is in use");
 
         verify(deviceRepository, never()).save(any());
@@ -399,7 +400,7 @@ class DeviceServiceTest {
     }
 
     @Test
-    @DisplayName("updateDevicePartially throws IllegalArgumentException when updating name of in-use device")
+    @DisplayName("updateDevicePartially throws DeviceInUseException when updating name of in-use device")
     void shouldRejectNameUpdateWhenDeviceInUseViaPatch() {
         UUID deviceId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
@@ -418,14 +419,14 @@ class DeviceServiceTest {
         DevicePatchRequest request = new DevicePatchRequest("MacBook Air", null, null);
 
         assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("name cannot be updated when device is in use");
 
         verify(deviceRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("updateDevicePartially throws IllegalArgumentException when updating brand of in-use device")
+    @DisplayName("updateDevicePartially throws DeviceInUseException when updating brand of in-use device")
     void shouldRejectBrandUpdateWhenDeviceInUseViaPatch() {
         UUID deviceId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
@@ -447,7 +448,7 @@ class DeviceServiceTest {
         DevicePatchRequest request = new DevicePatchRequest(null, otherBrandId, null);
 
         assertThatThrownBy(() -> deviceService.updateDevicePartially(deviceId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("brand cannot be updated when device is in use");
 
         verify(deviceRepository, never()).save(any());
@@ -492,7 +493,7 @@ class DeviceServiceTest {
     }
 
     @Test
-    @DisplayName("deleteDevice throws IllegalArgumentException when device is in use")
+    @DisplayName("deleteDevice throws DeviceInUseException when device is in use")
     void shouldThrowWhenDeletingInUseDevice() {
         UUID deviceId = UUID.randomUUID();
         Device existing = Device.builder()
@@ -505,7 +506,7 @@ class DeviceServiceTest {
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> deviceService.deleteDevice(deviceId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(DeviceInUseException.class)
                 .hasMessageContaining("cannot be deleted while it is in use");
 
         verify(deviceRepository, never()).delete(any(Device.class));
