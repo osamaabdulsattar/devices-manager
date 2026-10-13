@@ -129,7 +129,8 @@ class BrandControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("already exists")));
+                .andExpect(jsonPath("$.detail").value(containsString("already exists")))
+                .andExpect(jsonPath("$.type").value("/problems/duplicate-brand-name"));
     }
 
     @Test
@@ -140,7 +141,7 @@ class BrandControllerTest {
                         .content("{\"name\": \"   \"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.validationErrors[0].field").value("name"));
+                .andExpect(jsonPath("$.errors[0].field").value("name"));
     }
 
     @Test
@@ -209,7 +210,8 @@ class BrandControllerTest {
     void shouldRejectDeletingBrandWithDevices() throws Exception {
         mockMvc.perform(delete(ApiConstants.BRANDS_PATH + "/" + apple.getId()).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value(containsString("devices are associated")));
+                .andExpect(jsonPath("$.type").value("/problems/brand-in-use"))
+                .andExpect(jsonPath("$.detail").value(containsString("devices are associated")));
 
         assertThat(brandRepository.findById(apple.getId())).isPresent();
     }

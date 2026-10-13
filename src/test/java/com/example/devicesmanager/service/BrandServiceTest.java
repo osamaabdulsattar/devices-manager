@@ -2,7 +2,8 @@ package com.example.devicesmanager.service;
 
 import com.example.devicesmanager.dto.BrandRequest;
 import com.example.devicesmanager.dto.BrandResponse;
-import com.example.devicesmanager.exception.ConflictException;
+import com.example.devicesmanager.exception.BrandInUseException;
+import com.example.devicesmanager.exception.DuplicateBrandNameException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.model.Brand;
 import com.example.devicesmanager.repository.BrandRepository;
@@ -53,13 +54,13 @@ class BrandServiceTest {
     }
 
     @Test
-    @DisplayName("createBrand throws ConflictException when the name is taken")
+    @DisplayName("createBrand throws DuplicateBrandNameException when the name is taken")
     void shouldRejectDuplicateName() {
         when(brandRepository.findByNameIgnoreCase("Apple"))
                 .thenReturn(Optional.of(Brand.builder().id(UUID.randomUUID()).name("Apple").build()));
 
         assertThatThrownBy(() -> brandService.createBrand(new BrandRequest("Apple")))
-                .isInstanceOf(ConflictException.class);
+                .isInstanceOf(DuplicateBrandNameException.class);
 
         verify(brandRepository, never()).saveAndFlush(any());
     }
@@ -76,7 +77,7 @@ class BrandServiceTest {
     }
 
     @Test
-    @DisplayName("deleteBrand throws ConflictException when devices reference the brand")
+    @DisplayName("deleteBrand throws BrandInUseException when devices reference the brand")
     void shouldRejectDeletingBrandInUse() {
         UUID id = UUID.randomUUID();
         Brand brand = Brand.builder().id(id).name("Apple").build();
@@ -84,7 +85,7 @@ class BrandServiceTest {
         when(deviceRepository.existsByBrandId(id)).thenReturn(true);
 
         assertThatThrownBy(() -> brandService.deleteBrand(id))
-                .isInstanceOf(ConflictException.class);
+                .isInstanceOf(BrandInUseException.class);
 
         verify(brandRepository, never()).delete(any());
     }

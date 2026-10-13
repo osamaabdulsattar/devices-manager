@@ -155,12 +155,30 @@ Responses wrap the items with page metadata:
 
 ---
 
+### Error Responses
+
+All errors use [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) (`application/problem+json`).
+Clients can branch on the stable `type`; `detail` is a human-readable explanation:
+
+```json
+{
+  "type": "/problems/device-in-use",
+  "title": "Device is in use",
+  "status": 409,
+  "detail": "Device cannot be deleted while it is in use",
+  "instance": "/api/v1/devices/9b2f6c1e-4d3a-4e8b-a7c5-2f1d0e9b8a76"
+}
+```
+
+Validation errors (`/problems/validation-failed`) also include an `errors` array of `{ "field", "message" }`.
+The full list of problem types is documented in the `ProblemDetail` schema of the OpenAPI spec.
+
 ## Design Decisions & Assumptions
 
 - **Brand is a separate entity** rather than a free-text field, so brand names stay consistent and devices can be filtered by brand reliably. Brand names are unique case-insensitively and trimmed.
 - **Only name and brand are locked while a device is `in-use`.** Changing the state is always allowed, otherwise an in-use device could never be released. A request that repeats the current name/brand unchanged is accepted, so a full `PUT` that only changes the state works.
 - **`PUT` replaces all fields, `PATCH` updates only the fields provided.** `null`/omitted fields in a `PATCH` are left unchanged.
-- **Status codes:** `400` for malformed input or validation errors, `404` only when the resource in the URL does not exist, `422` when the body references a brand that does not exist (`brandId`), `409` when a valid request breaks a business rule (in-use device, brand still referenced, duplicate brand name, concurrent write), `412` for a stale `If-Match`.
+- **Status codes:** `400` for malformed input or validation errors, `404` only when the resource in the URL does not exist, `422` when the body references a brand that does not exist (`brandId`), `409` when a valid request breaks a business rule (in-use device, brand still referenced, duplicate brand name, concurrent write), `412` for a stale `If-Match`. Framework-level errors (unsupported method or media type, unknown path) keep their proper `405`/`415`/`404` instead of falling through to `500`.
 - **Pagination is always on** for list endpoints, with a capped page size, so a list request can never load the whole table. The ID is appended as a final sort key so pages stay stable when sort values tie.
 - **Optimistic locking** (`@Version`) prevents lost updates. The version is exposed as an `ETag` so clients can opt in to conditional writes via `If-Match`; without the header the last write wins.
 - **Contract-first API:** `openapi.yaml` is the source of truth for clients and is checked against the code by a test, instead of being generated from annotations.

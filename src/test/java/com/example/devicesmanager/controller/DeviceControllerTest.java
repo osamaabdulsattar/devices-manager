@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -179,7 +180,8 @@ class DeviceControllerTest {
         mockMvc.perform(get(ApiConstants.DEVICES_PATH)
                         .param("brandId", "not-a-valid-uuid")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("/problems/invalid-parameter"));
     }
 
     // --- GET /api/v1/devices/{id} tests ---
@@ -261,7 +263,8 @@ class DeviceControllerTest {
                         .param("sort", "colour,asc")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(containsString("Invalid sort property 'colour'")));
+                .andExpect(jsonPath("$.detail").value(containsString("Invalid sort property 'colour'")))
+                .andExpect(jsonPath("$.type").value("/problems/invalid-parameter"));
     }
 
     @Test
@@ -284,7 +287,8 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Not Found"));
+                .andExpect(jsonPath("$.type").value("/problems/resource-not-found"))
+                .andExpect(jsonPath("$.title").value("Resource not found"));
     }
 
     // --- POST /api/v1/devices tests ---
@@ -348,7 +352,8 @@ class DeviceControllerTest {
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.status").value(422));
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.type").value("/problems/invalid-reference"));
     }
 
     @Test
@@ -367,7 +372,8 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.validationErrors").isArray());
+                .andExpect(jsonPath("$.errors").isArray())
+                .andExpect(jsonPath("$.type").value("/problems/validation-failed"));
     }
 
     @Test
@@ -472,7 +478,7 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("name cannot be updated when device is in use")));
+                .andExpect(jsonPath("$.detail").value(containsString("name cannot be updated when device is in use")));
     }
 
     @Test
@@ -492,7 +498,7 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("brand cannot be updated when device is in use")));
+                .andExpect(jsonPath("$.detail").value(containsString("brand cannot be updated when device is in use")));
     }
 
     @Test
@@ -625,7 +631,7 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("name cannot be updated when device is in use")));
+                .andExpect(jsonPath("$.detail").value(containsString("name cannot be updated when device is in use")));
     }
 
     @Test
@@ -643,7 +649,7 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("brand cannot be updated when device is in use")));
+                .andExpect(jsonPath("$.detail").value(containsString("brand cannot be updated when device is in use")));
     }
 
     @Test
@@ -727,8 +733,9 @@ class DeviceControllerTest {
         mockMvc.perform(delete(ApiConstants.DEVICES_PATH + "/" + macbook.getId())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("/problems/device-in-use"))
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.message").value(containsString("cannot be deleted while it is in use")));
+                .andExpect(jsonPath("$.detail").value(containsString("cannot be deleted while it is in use")));
 
         // Verify device still exists
         mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + macbook.getId())
@@ -812,6 +819,7 @@ class DeviceControllerTest {
                         .content(payload)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isPreconditionFailed())
+                .andExpect(jsonPath("$.type").value("/problems/precondition-failed"))
                 .andExpect(jsonPath("$.status").value(412));
 
         mockMvc.perform(get(ApiConstants.DEVICES_PATH + "/" + iphone.getId())
@@ -848,5 +856,44 @@ class DeviceControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("iPhone\n15"));
+    }
+
+    // --- Problem Details for framework errors ---
+
+    @Test
+    @DisplayName("Errors are returned as application/problem+json with the request path as instance")
+    void shouldReturnProblemJson() throws Exception {
+        String path = ApiConstants.DEVICES_PATH + "/" + UUID.randomUUID();
+        mockMvc.perform(get(path))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.instance").value(path));
+    }
+
+    @Test
+    @DisplayName("Unsupported HTTP method returns 405 instead of 500")
+    void shouldReturn405ForUnsupportedMethod() throws Exception {
+        mockMvc.perform(patch(ApiConstants.DEVICES_PATH))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists("Allow"))
+                .andExpect(jsonPath("$.status").value(405));
+    }
+
+    @Test
+    @DisplayName("Unsupported content type returns 415 instead of 500")
+    void shouldReturn415ForUnsupportedMediaType() throws Exception {
+        mockMvc.perform(post(ApiConstants.DEVICES_PATH)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("iPhone"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415));
+    }
+
+    @Test
+    @DisplayName("Unknown path returns 404 instead of 500")
+    void shouldReturn404ForUnknownPath() throws Exception {
+        mockMvc.perform(get("/api/v1/unknown"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
     }
 }

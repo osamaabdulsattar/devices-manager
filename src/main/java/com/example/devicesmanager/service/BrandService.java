@@ -3,7 +3,8 @@ package com.example.devicesmanager.service;
 import com.example.devicesmanager.dto.BrandRequest;
 import com.example.devicesmanager.dto.BrandResponse;
 import com.example.devicesmanager.dto.PageResponse;
-import com.example.devicesmanager.exception.ConflictException;
+import com.example.devicesmanager.exception.BrandInUseException;
+import com.example.devicesmanager.exception.DuplicateBrandNameException;
 import com.example.devicesmanager.exception.ResourceNotFoundException;
 import com.example.devicesmanager.mapper.BrandMapper;
 import com.example.devicesmanager.model.Brand;
@@ -59,7 +60,7 @@ public class BrandService {
         Brand brand = findBrandOrThrow(id);
 
         if (deviceRepository.existsByBrandId(id)) {
-            throw new ConflictException("Brand cannot be deleted while devices are associated with it");
+            throw new BrandInUseException("Brand cannot be deleted while devices are associated with it");
         }
 
         brandRepository.delete(brand);
@@ -74,7 +75,7 @@ public class BrandService {
         brandRepository.findByNameIgnoreCase(name)
                 .filter(existing -> !existing.getId().equals(currentBrandId))
                 .ifPresent(existing -> {
-                    throw new ConflictException("Brand with name '" + name + "' already exists");
+                    throw new DuplicateBrandNameException("Brand with name '" + name + "' already exists");
                 });
     }
 }

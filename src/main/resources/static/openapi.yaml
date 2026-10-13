@@ -93,15 +93,15 @@ paths:
         '400':
           description: Invalid query parameter provided (including an unknown sort property)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     post:
       tags:
@@ -134,23 +134,23 @@ paths:
         '400':
           description: Invalid request payload or validation failure
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: Request conflicts with existing data (e.g. the brand was deleted concurrently)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '422':
           $ref: '#/components/responses/InvalidReference'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
   /devices/{id}:
     get:
@@ -174,15 +174,15 @@ paths:
         '404':
           description: Device not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     put:
       tags:
@@ -213,23 +213,23 @@ paths:
         '400':
           description: Invalid input or validation failure
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: Device not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: |
             The device is `in-use` and the request changes its name or brand,
             or it was modified concurrently by another request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '422':
@@ -237,9 +237,9 @@ paths:
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     patch:
       tags:
@@ -270,23 +270,23 @@ paths:
         '400':
           description: Invalid input or validation failure
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: Device not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: |
             The device is `in-use` and the request changes its name or brand,
             or it was modified concurrently by another request
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '422':
@@ -294,9 +294,9 @@ paths:
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     delete:
       tags:
@@ -313,29 +313,29 @@ paths:
         '400':
           description: Malformed device ID
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: Device not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: Device is currently in use and cannot be deleted
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
   /brands:
     get:
@@ -366,15 +366,15 @@ paths:
         '400':
           description: Invalid query parameter provided (including an unknown sort property)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     post:
       tags:
@@ -405,21 +405,21 @@ paths:
         '400':
           description: Invalid request payload or validation failure
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: Brand name already exists (compared case-insensitively)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
   /brands/{id}:
     get:
@@ -440,15 +440,15 @@ paths:
         '404':
           description: Brand not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     put:
       tags:
@@ -475,27 +475,27 @@ paths:
         '400':
           description: Invalid input or validation failure
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: Brand not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: Brand name already in use by another brand
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
     delete:
       tags:
@@ -511,21 +511,21 @@ paths:
         '404':
           description: Brand not found
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '409':
           description: Cannot delete brand because devices are still associated with it
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
         '500':
           description: Internal server error
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetail'
 
 components:
   headers:
@@ -541,16 +541,16 @@ components:
         The request body references a brand that does not exist (`brandId`).
         `404` is reserved for resources addressed by the URL.
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: '#/components/schemas/ProblemDetail'
 
     PreconditionFailed:
       description: The `If-Match` header does not match the current device version
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: '#/components/schemas/ProblemDetail'
 
   parameters:
     PageParam:
@@ -817,44 +817,61 @@ components:
           $ref: '#/components/schemas/DeviceState'
           description: Optional updated state of the device
 
-    ErrorResponse:
+    ProblemDetail:
       type: object
-      description: Standard API error response format
+      description: |
+        Error response following [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) (Problem Details for HTTP APIs).
+        Clients should branch on `type`; `detail` is a human-readable explanation that may change.
+
+        | `type` | Status | Meaning |
+        | :--- | :--- | :--- |
+        | `/problems/resource-not-found` | 404 | The device or brand in the URL does not exist |
+        | `/problems/validation-failed` | 400 | Request body fields are invalid (see `errors`) |
+        | `/problems/malformed-request` | 400 | Request body is not valid JSON or has an invalid value |
+        | `/problems/invalid-parameter` | 400 | A path or query parameter is invalid (incl. unknown sort property) |
+        | `/problems/invalid-reference` | 422 | The body references a brand that does not exist |
+        | `/problems/device-in-use` | 409 | The change is not allowed while the device is `in-use` |
+        | `/problems/brand-in-use` | 409 | The brand still has devices and cannot be deleted |
+        | `/problems/duplicate-brand-name` | 409 | Another brand already has this name |
+        | `/problems/concurrent-modification` | 409 | The resource was modified concurrently; retry |
+        | `/problems/data-conflict` | 409 | The request conflicts with existing data |
+        | `/problems/precondition-failed` | 412 | `If-Match` does not match the current version |
+        | `/problems/internal-error` | 500 | Unexpected server error |
+        | `about:blank` | 404, 405, 406, 415, ... | Generic HTTP error (e.g. unknown path, unsupported method or media type) |
       properties:
-        timestamp:
+        type:
           type: string
-          format: date-time
-          example: '2026-10-07T09:15:00Z'
-          description: When the error occurred
+          format: uri-reference
+          example: /problems/device-in-use
+          description: Identifies the problem type
+        title:
+          type: string
+          example: Device is in use
+          description: Short, human-readable summary of the problem type
         status:
           type: integer
-          example: 400
+          example: 409
           description: HTTP status code
-        error:
+        detail:
           type: string
-          example: Bad Request
-          description: Short error description
-        message:
+          example: Device cannot be deleted while it is in use
+          description: Human-readable explanation specific to this occurrence
+        instance:
           type: string
-          example: Device validation failed
-          description: Detailed human-readable error explanation
-        path:
-          type: string
-          example: /api/v1/devices
-          description: The endpoint URI where the error occurred
-        validationErrors:
+          format: uri-reference
+          example: /api/v1/devices/9b2f6c1e-4d3a-4e8b-a7c5-2f1d0e9b8a76
+          description: The request path that caused the problem
+        errors:
           type: array
-          description: Detailed field-level errors (if applicable)
+          description: Field-level errors (only for `validation-failed`)
           items:
-            $ref: '#/components/schemas/FieldError'
+            $ref: '#/components/schemas/FieldViolation'
       required:
-        - timestamp
+        - type
+        - title
         - status
-        - error
-        - message
-        - path
 
-    FieldError:
+    FieldViolation:
       type: object
       description: Validation error for a specific field
       properties:

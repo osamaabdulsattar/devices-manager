@@ -1,167 +1,126 @@
 package com.example.devicesmanager.exception;
 
-import com.example.devicesmanager.dto.ErrorResponse;
-import com.example.devicesmanager.dto.FieldErrorResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.core.PropertyReferenceException;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.time.Instant;
 import java.util.List;
 
+/**
+ * Renders every error as an RFC 9457 Problem Details document ({@code application/problem+json}).
+ * <p>
+ * Extending {@link ResponseEntityExceptionHandler} lets Spring MVC's own exceptions (unsupported method or media
+ * type, unknown path, missing parameters, ...) keep their proper 4xx status instead of falling through to the
+ * catch-all 500 handler.
+ */
 @Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFound(
-            ResourceNotFoundException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Resource not found: {}", ex.getMessage());
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Validation failed: {}", ex.getMessage());
-        List<FieldErrorResponse> validationErrors = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(fieldError -> new FieldErrorResponse(
-                        fieldError.getField(),
-                        fieldError.getDefaultMessage()
-                ))
-                .toList();
-
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Validation failed",
-                request.getRequestURI(),
-                validationErrors
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Malformed request body: {}", ex.getMessage());
-        String message = "Malformed request payload";
-        Throwable cause = ex.getCause();
-        Throwable rootCause = ex.getRootCause();
-        if (cause instanceof IllegalArgumentException) {
-            message = cause.getMessage();
-        } else if (rootCause != null && rootCause.getMessage() != null) {
-            message = rootCause.getMessage();
-        }
-        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
-    }
-
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Parameter type mismatch: {} = {}", ex.getName(), ex.getValue());
-        String message = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getName());
-        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ProblemDetail> handleApiException(ApiException ex) {
+        log.warn("{}: {}", ex.getProblemType(), ex.getMessage());
+        return toResponse(problem(ex.getProblemType(), ex.getMessage()));
     }
 
     @ExceptionHandler(PropertyReferenceException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidSortProperty(
-            PropertyReferenceException ex,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ProblemDetail> handleInvalidSortProperty(PropertyReferenceException ex) {
         log.warn("Invalid sort property: {}", ex.getPropertyName());
-        String message = String.format("Invalid sort property '%s'", ex.getPropertyName());
-        return buildResponse(HttpStatus.BAD_REQUEST, message, request);
-    }
-
-    @ExceptionHandler(InvalidReferenceException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidReference(
-            InvalidReferenceException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Invalid reference: {}", ex.getMessage());
-        return buildResponse(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(
-            ConflictException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Conflict: {}", ex.getMessage());
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(PreconditionFailedException.class)
-    public ResponseEntity<ErrorResponse> handlePreconditionFailed(
-            PreconditionFailedException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("Precondition failed: {}", ex.getMessage());
-        return buildResponse(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), request);
+        String detail = String.format("Invalid sort property '%s'", ex.getPropertyName());
+        return toResponse(problem(ProblemType.INVALID_PARAMETER, detail));
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<ErrorResponse> handleOptimisticLocking(
-            ObjectOptimisticLockingFailureException ex,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ProblemDetail> handleOptimisticLocking(ObjectOptimisticLockingFailureException ex) {
         log.warn("Optimistic locking failure: {}", ex.getMessage());
-        return buildResponse(HttpStatus.CONFLICT, "Resource was modified concurrently, please retry", request);
+        return toResponse(problem(ProblemType.CONCURRENT_MODIFICATION,
+                "Resource was modified concurrently, please retry"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
-            DataIntegrityViolationException ex,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         // Usually a race the service-level checks could not catch (e.g. two concurrent creates with the same
         // brand name). Don't leak database details to the client.
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
-        return buildResponse(HttpStatus.CONFLICT, "Request conflicts with existing data", request);
+        return toResponse(problem(ProblemType.DATA_CONFLICT, "Request conflicts with existing data"));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneralException(
-            Exception ex,
-            HttpServletRequest request
-    ) {
+    public ResponseEntity<ProblemDetail> handleUnexpected(Exception ex) {
         log.error("Unhandled exception: ", ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+        return toResponse(problem(ProblemType.INTERNAL_ERROR, "An unexpected error occurred"));
     }
 
-    private static ResponseEntity<ErrorResponse> buildResponse(
-            HttpStatus status,
-            String message,
-            HttpServletRequest request
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
     ) {
-        ErrorResponse errorResponse = new ErrorResponse(
-                Instant.now(),
-                status.value(),
-                status.getReasonPhrase(),
-                message,
-                request.getRequestURI()
-        );
-        return ResponseEntity.status(status).body(errorResponse);
+        log.warn("Validation failed: {}", ex.getMessage());
+        List<FieldViolation> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(fieldError -> new FieldViolation(fieldError.getField(), fieldError.getDefaultMessage()))
+                .toList();
+
+        ProblemDetail problem = problem(ProblemType.VALIDATION_FAILED, "Request body contains invalid fields");
+        problem.setProperty("errors", errors);
+        return handleExceptionInternal(ex, problem, headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        log.warn("Malformed request body: {}", ex.getMessage());
+        String detail = "Malformed request payload";
+        Throwable cause = ex.getCause();
+        Throwable rootCause = ex.getRootCause();
+        if (cause instanceof IllegalArgumentException) {
+            detail = cause.getMessage();
+        } else if (rootCause != null && rootCause.getMessage() != null) {
+            detail = rootCause.getMessage();
+        }
+        return handleExceptionInternal(ex, problem(ProblemType.MALFORMED_REQUEST, detail), headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        log.warn("Parameter type mismatch: {} = {}", ex.getPropertyName(), ex.getValue());
+        String detail = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getPropertyName());
+        return handleExceptionInternal(ex, problem(ProblemType.INVALID_PARAMETER, detail), headers, status, request);
+    }
+
+    private static ProblemDetail problem(ProblemType type, String detail) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(type.status(), detail);
+        problem.setType(type.uri());
+        problem.setTitle(type.title());
+        return problem;
+    }
+
+    private static ResponseEntity<ProblemDetail> toResponse(ProblemDetail problem) {
+        return ResponseEntity.status(problem.getStatus()).body(problem);
     }
 }

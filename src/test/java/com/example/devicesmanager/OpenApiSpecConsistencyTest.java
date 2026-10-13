@@ -6,9 +6,9 @@ import com.example.devicesmanager.dto.DeviceCreateRequest;
 import com.example.devicesmanager.dto.DevicePatchRequest;
 import com.example.devicesmanager.dto.DeviceResponse;
 import com.example.devicesmanager.dto.DeviceUpdateRequest;
-import com.example.devicesmanager.dto.ErrorResponse;
-import com.example.devicesmanager.dto.FieldErrorResponse;
 import com.example.devicesmanager.dto.PageResponse;
+import com.example.devicesmanager.exception.FieldViolation;
+import com.example.devicesmanager.exception.ProblemType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * The OpenAPI spec is hand-written (contract first), so this test keeps it from drifting away from the code:
  * every documented operation must be implemented, every implemented operation must be documented, and the
- * documented schemas must have the same fields as the DTOs they describe.
+ * documented schemas must have the same fields as the DTOs they describe, and every problem type must be documented.
  */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
@@ -49,8 +49,7 @@ class OpenApiSpecConsistencyTest {
             "DeviceCreateRequest", DeviceCreateRequest.class,
             "DeviceUpdateRequest", DeviceUpdateRequest.class,
             "DevicePatchRequest", DevicePatchRequest.class,
-            "ErrorResponse", ErrorResponse.class,
-            "FieldError", FieldErrorResponse.class,
+            "FieldViolation", FieldViolation.class,
             "DevicePage", PageResponse.class,
             "BrandPage", PageResponse.class
     );
@@ -99,6 +98,20 @@ class OpenApiSpecConsistencyTest {
                     .as("properties of schema %s vs fields of %s", schemaName, type.getSimpleName())
                     .isEqualTo(fields);
         });
+    }
+
+    @Test
+    void everyProblemTypeIsDocumented() throws IOException {
+        Map<String, Object> spec = loadSpec();
+        Map<String, Map<String, Object>> schemas = (Map<String, Map<String, Object>>)
+                ((Map<String, Object>) spec.get("components")).get("schemas");
+        String problemDescription = (String) schemas.get("ProblemDetail").get("description");
+
+        for (ProblemType type : ProblemType.values()) {
+            assertThat(problemDescription)
+                    .as("ProblemDetail description documents %s", type)
+                    .contains("`" + type.uri() + "` | " + type.status().value());
+        }
     }
 
     private static Map<String, Object> loadSpec() throws IOException {

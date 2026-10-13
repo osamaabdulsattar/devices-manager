@@ -1,31 +1,33 @@
 package com.example.devicesmanager.exception;
 
-import com.example.devicesmanager.dto.ErrorResponse;
 import com.example.devicesmanager.model.Device;
-import jakarta.servlet.http.HttpServletRequest;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
+import java.net.URI;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
-    private HttpServletRequest request;
+    @Test
+    void handleApiExceptionUsesProblemTypeForStatusTypeAndTitle() {
+        ResponseEntity<ProblemDetail> response =
+                handler.handleApiException(new DeviceInUseException("Device cannot be deleted while it is in use"));
 
-    @BeforeEach
-    void setUp() {
-        request = mock(HttpServletRequest.class);
-        when(request.getRequestURI()).thenReturn("/api/v1/devices/" + UUID.randomUUID());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        ProblemDetail problem = response.getBody();
+        assertThat(problem).isNotNull();
+        assertThat(problem.getType()).isEqualTo(URI.create("/problems/device-in-use"));
+        assertThat(problem.getTitle()).isEqualTo("Device is in use");
+        assertThat(problem.getDetail()).isEqualTo("Device cannot be deleted while it is in use");
     }
 
     @Test
@@ -33,12 +35,11 @@ class GlobalExceptionHandlerTest {
         ObjectOptimisticLockingFailureException ex =
                 new ObjectOptimisticLockingFailureException(Device.class, UUID.randomUUID());
 
-        ResponseEntity<ErrorResponse> response = handler.handleOptimisticLocking(ex, request);
+        ResponseEntity<ProblemDetail> response = handler.handleOptimisticLocking(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().status()).isEqualTo(409);
-        assertThat(response.getBody().path()).isEqualTo(request.getRequestURI());
+        assertThat(response.getBody().getType()).isEqualTo(ProblemType.CONCURRENT_MODIFICATION.uri());
     }
 
     @Test
@@ -46,20 +47,19 @@ class GlobalExceptionHandlerTest {
         DataIntegrityViolationException ex =
                 new DataIntegrityViolationException("duplicate key value violates unique constraint \"brands_name_key\"");
 
-        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(ex, request);
+        ResponseEntity<ProblemDetail> response = handler.handleDataIntegrityViolation(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().message()).doesNotContain("brands_name_key");
+        assertThat(response.getBody().getDetail()).doesNotContain("brands_name_key");
     }
 
     @Test
-    void handlePreconditionFailedReturns412() {
-        ResponseEntity<ErrorResponse> response =
-                handler.handlePreconditionFailed(new PreconditionFailedException("stale"), request);
+    void handleUnexpectedReturns500WithoutLeakingDetails() {
+        ResponseEntity<ProblemDetail> response = handler.handleUnexpected(new IllegalStateException("secret internals"));
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_FAILED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().status()).isEqualTo(412);
+        assertThat(response.getBody().getDetail()).doesNotContain("secret internals");
     }
 }

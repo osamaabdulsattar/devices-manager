@@ -1,8 +1,8 @@
 package com.example.devicesmanager.exception;
 
-public class ResourceNotFoundException extends RuntimeException {
+public class ResourceNotFoundException extends ApiException {
 
     public ResourceNotFoundException(String message) {
-        super(message);
+        super(ProblemType.RESOURCE_NOT_FOUND, message);
     }
 }
