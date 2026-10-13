@@ -3,6 +3,9 @@ package com.example.devicesmanager.exception;
 import com.example.devicesmanager.model.Device;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.converter.HttpMessageNotWritableException;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -61,5 +64,19 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getDetail()).doesNotContain("secret internals");
+    }
+
+    @Test
+    void frameworkServerErrorsUseInternalErrorType() throws Exception {
+        ResponseEntity<Object> response = handler.handleException(
+                new HttpMessageNotWritableException("secret internals"),
+                new ServletWebRequest(new MockHttpServletRequest()));
+
+        assertThat(response).isNotNull();
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        ProblemDetail problem = (ProblemDetail) response.getBody();
+        assertThat(problem).isNotNull();
+        assertThat(problem.getType()).isEqualTo(ProblemType.INTERNAL_ERROR.uri());
+        assertThat(problem.getDetail()).doesNotContain("secret internals");
     }
 }

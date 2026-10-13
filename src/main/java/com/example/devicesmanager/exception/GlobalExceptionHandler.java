@@ -5,6 +5,7 @@ import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -111,6 +112,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("Parameter type mismatch: {} = {}", ex.getPropertyName(), ex.getValue());
         String detail = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getPropertyName());
         return handleExceptionInternal(ex, problem(ProblemType.INVALID_PARAMETER, detail), headers, status, request);
+    }
+
+    /**
+     * Some Spring MVC exceptions handled by the base class are server-side failures (e.g. a response that cannot be
+     * serialized). Treat those like any other unexpected error: log them and return the {@code internal-error} type.
+     */
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex,
+            Object body,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request
+    ) {
+        if (statusCode.value() == HttpStatus.INTERNAL_SERVER_ERROR.value()) {
+            log.error("Unhandled exception: ", ex);
+            body = problem(ProblemType.INTERNAL_ERROR, "An unexpected error occurred");
+        }
+        return super.handleExceptionInternal(ex, body, headers, statusCode, request);
     }
 
     private static ProblemDetail problem(ProblemType type, String detail) {
