@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -63,6 +64,17 @@ class BrandServiceTest {
                 .isInstanceOf(DuplicateBrandNameException.class);
 
         verify(brandRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("createBrand throws DuplicateBrandNameException when a concurrent create wins the unique constraint")
+    void shouldMapUniqueConstraintRaceToDuplicateName() {
+        when(brandRepository.findByNameIgnoreCase("Apple")).thenReturn(Optional.empty());
+        when(brandRepository.saveAndFlush(any(Brand.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+
+        assertThatThrownBy(() -> brandService.createBrand(new BrandRequest("Apple")))
+                .isInstanceOf(DuplicateBrandNameException.class);
     }
 
     @Test

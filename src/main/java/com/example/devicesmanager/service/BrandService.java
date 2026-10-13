@@ -12,6 +12,7 @@ import com.example.devicesmanager.repository.BrandRepository;
 import com.example.devicesmanager.repository.DeviceRepository;
 import com.example.devicesmanager.repository.Pageables;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +42,7 @@ public class BrandService {
         String name = request.name().trim();
         assertNameAvailable(name, null);
 
-        Brand savedBrand = brandRepository.saveAndFlush(Brand.builder().name(name).build());
+        Brand savedBrand = saveName(Brand.builder().name(name).build());
         return BrandMapper.toResponse(savedBrand);
     }
 
@@ -52,7 +53,7 @@ public class BrandService {
         assertNameAvailable(name, id);
 
         brand.setName(name);
-        return BrandMapper.toResponse(brandRepository.saveAndFlush(brand));
+        return BrandMapper.toResponse(saveName(brand));
     }
 
     @Transactional
@@ -69,6 +70,18 @@ public class BrandService {
     private Brand findBrandOrThrow(UUID id) {
         return brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + id));
+    }
+
+    /**
+     * Two concurrent requests can both pass {@link #assertNameAvailable} and race on the unique name constraint. The
+     * name is the only constraint an insert or rename can violate, so report the loser as a duplicate name too.
+     */
+    private Brand saveName(Brand brand) {
+        try {
+            return brandRepository.saveAndFlush(brand);
+        } catch (DataIntegrityViolationException ex) {
+            throw new DuplicateBrandNameException("Brand with name '" + brand.getName() + "' already exists");
+        }
     }
 
     private void assertNameAvailable(String name, UUID currentBrandId) {

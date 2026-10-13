@@ -52,8 +52,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        // Usually a race the service-level checks could not catch (e.g. two concurrent creates with the same
-        // brand name). Don't leak database details to the client.
+        // A race the service-level checks could not catch and the service did not map to a more specific type.
+        // Don't leak database details to the client.
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return toResponse(problem(ProblemType.DATA_CONFLICT, "Request conflicts with existing data"));
     }
